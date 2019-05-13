@@ -1,7 +1,6 @@
 package simpledb;
 
 import java.util.NoSuchElementException;
-
 import org.junit.Test;
 
 import simpledb.systemtest.SimpleDbTestBase;

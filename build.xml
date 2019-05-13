@@ -2,7 +2,7 @@
 <project name="simpledb" default="dist" basedir=".">
     <property name="src" location="src"/>
     <property name="testd" location="test"/>
-
+    <property name="srcdir" location="src/java"/>
     <property name="build" location="bin"/>
     <property name="build.src" location="${build}/src"/>
     <property name="build.test" location="${build}/test"/>
