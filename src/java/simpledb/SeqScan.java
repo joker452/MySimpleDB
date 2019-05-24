@@ -98,23 +98,21 @@ public class SeqScan implements OpIterator {
      */
     public TupleDesc getTupleDesc() {
         // some code goes here
-        if (isOpen) {
-            if (tdWithPrefix == null) {
-                TupleDesc td = Database.getCatalog().getTupleDesc(tableid);
-                String prefix = (tableAlias == null) ? "null" : tableAlias;
-                int numFields = td.numFields();
-                Type[] typeAr = new Type[numFields];
-                String[] fieldAr = new String[numFields];
-                for (int i = 0; i < numFields; ++i) {
-                    typeAr[i] = td.getFieldType(i);
-                    fieldAr[i] = prefix + "." + td.getFieldName(i);
-                }
-                tdWithPrefix = new TupleDesc(typeAr, fieldAr);
+        if (tdWithPrefix == null) {
+            TupleDesc td = Database.getCatalog().getTupleDesc(tableid);
+            String prefix = (tableAlias == null) ? "null" : tableAlias;
+            int numFields = td.numFields();
+            Type[] typeAr = new Type[numFields];
+            String[] fieldAr = new String[numFields];
+            for (int i = 0; i < numFields; ++i) {
+                typeAr[i] = td.getFieldType(i);
+                fieldAr[i] = prefix + "." + td.getFieldName(i);
             }
-            return tdWithPrefix;
+            tdWithPrefix = new TupleDesc(typeAr, fieldAr);
         }
-        throw new IllegalStateException("SeqScan iterator is not open!");
+        return tdWithPrefix;
     }
+
 
     public boolean hasNext() throws TransactionAbortedException, DbException {
         // some code goes here
