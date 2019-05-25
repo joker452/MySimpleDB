@@ -1,6 +1,7 @@
 package simpledb;
 
 import java.io.*;
+import java.util.ArrayList;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -158,6 +159,24 @@ public class BufferPool {
             throws DbException, IOException, TransactionAbortedException {
         // some code goes here
         // not necessary for lab1
+        ArrayList<Page> modifiedPages = Database.getCatalog().getDatabaseFile(tableId).insertTuple(tid, t);
+        for (Page p : modifiedPages) {
+            p.markDirty(true, tid);
+            PageId pid = p.getId();
+            int emptyIdx = -1;
+            for (int i = 0; i < pages.length; ++i) {
+                if (pages[i] != null) {
+                    if (pages[i].getId().equals(pid)) {
+                        pages[i] = p;
+                        break;
+                    }
+                } else if (emptyIdx == -1)
+                    emptyIdx = i;
+            }
+            if (emptyIdx != -1) {
+                pages[emptyIdx] = p;
+            }
+        }
     }
 
     /**
@@ -177,6 +196,24 @@ public class BufferPool {
             throws DbException, IOException, TransactionAbortedException {
         // some code goes here
         // not necessary for lab1
+        ArrayList<Page> modifiedPages = Database.getCatalog().getDatabaseFile(t.getRecordId().getPageId().getTableId()).deleteTuple(tid, t);
+        for (Page p : modifiedPages) {
+            p.markDirty(true, tid);
+            PageId pid = p.getId();
+            int emptyIdx = -1;
+            for (int i = 0; i < pages.length; ++i) {
+                if (pages[i] != null) {
+                    if (pages[i].getId().equals(pid)) {
+                        pages[i] = p;
+                        break;
+                    }
+                } else if (emptyIdx == -1)
+                    emptyIdx = i;
+            }
+            if (emptyIdx != -1) {
+                pages[emptyIdx] = p;
+            }
+        }
     }
 
     /**
