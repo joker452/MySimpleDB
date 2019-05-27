@@ -273,6 +273,7 @@ public class HeapPage implements Page {
                 if (!isSlotUsed(i)) {
                     markSlotUsed(i, true);
                     tuples[i] = t;
+                    // set RecordId
                     t.setRecordId(new RecordId(getId(), i));
                     break;
                 }
@@ -288,7 +289,7 @@ public class HeapPage implements Page {
         // some code goes here
         // not necessary for lab1
         isDirty = dirty;
-        dirtyId = tid;
+        dirtyId = (dirty) ? tid : null;
     }
 
     /**
@@ -346,21 +347,23 @@ public class HeapPage implements Page {
         // some code goes here
         Iterator<Tuple> it = new Iterator<Tuple>() {
             int currentIdx = 0;
-            int currentNum = 0; // index in nonempty slots
 
             @Override
             public boolean hasNext() {
-                return currentNum < numSlots - getNumEmptySlots();
+                while (currentIdx < numSlots)
+                    if (isSlotUsed(currentIdx))
+                        return true;
+                    else
+                        ++currentIdx;
+
+                return false;
             }
 
             @Override
             public Tuple next() {
-                if (currentNum < numSlots - getNumEmptySlots()) {
-                    while (tuples[currentIdx] == null)
-                        ++currentIdx;
-                    ++currentNum;
+                if (currentIdx < numSlots)
                     return tuples[currentIdx++];
-                } else
+                else
                     throw new NoSuchElementException();
             }
 

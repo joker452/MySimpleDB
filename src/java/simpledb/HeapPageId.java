@@ -47,7 +47,7 @@ public class HeapPageId implements PageId {
     public int hashCode() {
         // some code goes here
         // check exception?
-        return Integer.parseInt(Integer.toString(tid) + Integer.toString(pageNum));
+        return (Integer.toString(tid) + pageNum).hashCode();
     }
 
     /**

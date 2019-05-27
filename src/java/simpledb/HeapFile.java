@@ -111,8 +111,6 @@ public class HeapFile implements DbFile {
                 throw new IllegalArgumentException("Unable to seek to correct place in HeapFile");
             }
             file.write(pageData);
-        } catch (IOException e) {
-            e.printStackTrace();
         }
     }
 
@@ -148,11 +146,14 @@ public class HeapFile implements DbFile {
         pages.add(heapPage);
         if (!done)
             writePage(heapPage);
-
         return pages;
     }
 
     // see DbFile.java for javadocs
+    /*
+    add by Deng
+    this method doesn't mark dirty bit
+     */
     @Override
     public ArrayList<Page> deleteTuple(TransactionId tid, Tuple t) throws DbException,
             TransactionAbortedException {
@@ -160,7 +161,7 @@ public class HeapFile implements DbFile {
         // not necessary for lab1
         int numPages = numPages();
         boolean done = false;
-        HeapPage heapPage = null;
+        HeapPage heapPage;
         ArrayList<Page> pages = new ArrayList<>();
         for (int i = 0; i < numPages; ++i) {
             heapPage = (HeapPage) Database.getBufferPool().getPage(tid,
