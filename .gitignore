@@ -5,6 +5,7 @@
 .idea/
 bin/
 dist/
+debug/
 log
 # Compiled class file
 *.class
