@@ -3,7 +3,7 @@ package simpledb;
 import java.io.*;
 import java.util.ArrayList;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.ConcurrentLinkedDeque;
 
 /**
  * BufferPool manages the reading and writing of pages into memory from
@@ -26,9 +26,7 @@ public class BufferPool {
 
     private final ConcurrentHashMap<PageId, Page> pages;
 
-    private final ConcurrentHashMap<PageId, Long> timer;
-
-    private final AtomicLong priority;
+    private final ConcurrentLinkedDeque<PageId> pageOrd;
 
     private final int numPages;
 
@@ -47,8 +45,7 @@ public class BufferPool {
     public BufferPool(int numPages) {
         // some code goes here
         pages = new ConcurrentHashMap<>();
-        timer = new ConcurrentHashMap<>();
-        priority = new AtomicLong(Long.MIN_VALUE);
+        pageOrd = new ConcurrentLinkedDeque<>();
         this.numPages = numPages;
     }
 
@@ -88,8 +85,11 @@ public class BufferPool {
             if (pages.size() >= numPages)
                 evictPage();
             pages.put(pid, Database.getCatalog().getDatabaseFile(pid.getTableId()).readPage(pid));
+            pageOrd.add(pid);
+        } else {
+            pageOrd.remove(pid);
+            pageOrd.add(pid);
         }
-        timer.put(pid, priority.getAndIncrement());
         return pages.get(pid);
     }
 
@@ -158,18 +158,25 @@ public class BufferPool {
             throws DbException, IOException, TransactionAbortedException {
         // some code goes here
         // not necessary for lab1
+        DbFile db = Database.getCatalog().getDatabaseFile(tableId);
         ArrayList<Page> modifiedPages = Database.getCatalog().getDatabaseFile(tableId).insertTuple(tid, t);
 
         for (Page p : modifiedPages) {
             p.markDirty(true, tid);
             PageId pid = p.getId();
             // null when not existent
-            if (pages.replace(pid, p) == null)
+            if (pages.replace(pid, p) == null) {
+                if (pages.size() >= numPages)
+                    evictPage();
+                else
+                    pageOrd.add(pid);
                 pages.put(pid, p);
-            if (timer.replace(pid, priority.longValue()) == null)
-                timer.put(pid, priority.longValue());
+            } else {
+                pageOrd.remove(pid);
+                pageOrd.add(pid);
+            }
         }
-        priority.getAndIncrement();
+
     }
 
     /**
@@ -195,12 +202,17 @@ public class BufferPool {
             p.markDirty(true, tid);
             PageId pid = p.getId();
             // null when not existent
-            if (pages.replace(pid, p) == null)
+            if (pages.replace(pid, p) == null) {
+                if (pages.size() >= numPages)
+                    evictPage();
+                else
+                    pageOrd.add(pid);
                 pages.put(pid, p);
-            if (timer.replace(pid, priority.longValue()) == null)
-                timer.put(pid, priority.longValue());
+            } else {
+                pageOrd.remove(pid);
+                pageOrd.add(pid);
+            }
         }
-        priority.getAndIncrement();
     }
 
     /**
@@ -230,7 +242,7 @@ public class BufferPool {
         // not necessary for lab1
         if (pid != null) {
             pages.remove(pid);
-            timer.remove(pid);
+            pageOrd.remove(pid);
         }
     }
 
@@ -264,17 +276,10 @@ public class BufferPool {
     private synchronized void evictPage() throws DbException {
         // some code goes here
         // not necessary for lab1
-        long priorityMin = Long.MAX_VALUE;
-        PageId pidMin = null;
-        for (PageId pid : pages.keySet())
-            if (timer.get(pid) <= priorityMin) {
-                priorityMin = timer.get(pid);
-                pidMin = pid;
-            }
+        PageId pid = pageOrd.poll();
         try {
-            flushPage(pidMin);
-            pages.remove(pidMin);
-            timer.remove(pidMin);
+            flushPage(pid);
+            pages.remove(pid);
         } catch (IOException e) {
             e.printStackTrace();
         }
