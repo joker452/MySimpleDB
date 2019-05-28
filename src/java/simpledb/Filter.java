@@ -80,7 +80,7 @@ public class Filter extends Operator {
     @Override
     public OpIterator[] getChildren() {
         // some code goes here
-        return new OpIterator[] { child };
+        return new OpIterator[]{child};
     }
 
     @Override

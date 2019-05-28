@@ -38,7 +38,7 @@ public class Aggregate extends Operator {
         this.afield = afield;
         this.gfield = gfield;
         op = aop;
-        Type gbfieldType = (gfield == Aggregator.NO_GROUPING) ? null:
+        Type gbfieldType = (gfield == Aggregator.NO_GROUPING) ? null :
                 child.getTupleDesc().getFieldType(gfield);
 
         Type afieldType = child.getTupleDesc().getFieldType(afield);

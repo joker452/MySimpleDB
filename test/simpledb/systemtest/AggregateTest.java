@@ -73,6 +73,7 @@ public class AggregateTest extends SimpleDbTestBase {
     private final static int ROWS = 1024;
     private final static int MAX_VALUE = 64;
     private final static int COLUMNS = 3;
+
     private void doAggregate(Aggregator.Op operation, int groupColumn)
             throws IOException, DbException, TransactionAbortedException {
         // Create the table
@@ -88,32 +89,40 @@ public class AggregateTest extends SimpleDbTestBase {
         validateAggregate(table, operation, 1, groupColumn, expected);
     }
 
-    @Test public void testSum() throws IOException, DbException, TransactionAbortedException {
+    @Test
+    public void testSum() throws IOException, DbException, TransactionAbortedException {
         doAggregate(Aggregator.Op.SUM, 0);
     }
 
-    @Test public void testMin() throws IOException, DbException, TransactionAbortedException {
+    @Test
+    public void testMin() throws IOException, DbException, TransactionAbortedException {
         doAggregate(Aggregator.Op.MIN, 0);
     }
 
-    @Test public void testMax() throws IOException, DbException, TransactionAbortedException {
+    @Test
+    public void testMax() throws IOException, DbException, TransactionAbortedException {
         doAggregate(Aggregator.Op.MAX, 0);
     }
 
-    @Test public void testCount() throws IOException, DbException, TransactionAbortedException {
+    @Test
+    public void testCount() throws IOException, DbException, TransactionAbortedException {
         doAggregate(Aggregator.Op.COUNT, 0);
     }
 
-    @Test public void testAverage() throws IOException, DbException, TransactionAbortedException {
+    @Test
+    public void testAverage() throws IOException, DbException, TransactionAbortedException {
         doAggregate(Aggregator.Op.AVG, 0);
     }
 
-    @Test public void testAverageNoGroup()
+    @Test
+    public void testAverageNoGroup()
             throws IOException, DbException, TransactionAbortedException {
         doAggregate(Aggregator.Op.AVG, Aggregator.NO_GROUPING);
     }
 
-    /** Make test compatible with older version of ant. */
+    /**
+     * Make test compatible with older version of ant.
+     */
     public static junit.framework.Test suite() {
         return new junit.framework.JUnit4TestAdapter(AggregateTest.class);
     }

@@ -15,7 +15,9 @@ public class Transaction {
         tid = new TransactionId();
     }
 
-    /** Start the transaction running */
+    /**
+     * Start the transaction running
+     */
     public void start() {
         started = true;
         try {
@@ -29,17 +31,23 @@ public class Transaction {
         return tid;
     }
 
-    /** Finish the transaction */
+    /**
+     * Finish the transaction
+     */
     public void commit() throws IOException {
         transactionComplete(false);
     }
 
-    /** Finish the transaction */
+    /**
+     * Finish the transaction
+     */
     public void abort() throws IOException {
         transactionComplete(true);
     }
 
-    /** Handle the details of transaction commit / abort */
+    /**
+     * Handle the details of transaction commit / abort
+     */
     public void transactionComplete(boolean abort) throws IOException {
 
         if (started) {

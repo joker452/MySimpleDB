@@ -1,6 +1,7 @@
 package simpledb;
 
 import Zql.*;
+
 import java.io.*;
 import java.lang.reflect.InvocationTargetException;
 import java.util.*;
@@ -63,11 +64,11 @@ public class Parser {
             Predicate.Op op = getOp(wx.getOperator());
 
             boolean op1const = ops.elementAt(0) instanceof ZConstant; // otherwise
-                                                                      // is a
-                                                                      // Query
+            // is a
+            // Query
             boolean op2const = ops.elementAt(1) instanceof ZConstant; // otherwise
-                                                                      // is a
-                                                                      // Query
+            // is a
+            // Query
             if (op1const && op2const) {
                 isJoin = ((ZConstant) ops.elementAt(0)).getType() == ZConstant.COLUMNNAME
                         && ((ZConstant) ops.elementAt(1)).getType() == ZConstant.COLUMNNAME;
@@ -144,12 +145,12 @@ public class Parser {
             try {
 
                 int id = Database.getCatalog().getTableId(fromIt.getTable()); // will
-                                                                              // fall
-                                                                              // through
-                                                                              // if
-                                                                              // table
-                                                                              // doesn't
-                                                                              // exist
+                // fall
+                // through
+                // if
+                // table
+                // doesn't
+                // exist
                 String name;
 
                 if (fromIt.getAlias() != null)
@@ -231,8 +232,8 @@ public class Parser {
             } else {
                 if (groupByField != null
                         && !(groupByField.equals(si.getTable() + "."
-                                + si.getColumn()) || groupByField.equals(si
-                                .getColumn()))) {
+                        + si.getColumn()) || groupByField.equals(si
+                        .getColumn()))) {
                     throw new simpledb.ParsingException("Non-aggregate field "
                             + si.getColumn()
                             + " does not appear in GROUP BY list.");
@@ -301,7 +302,7 @@ public class Parser {
                 c = Class.forName("simpledb.QueryPlanVisualizer");
                 m = c.getMethod(
                         "printQueryPlanTree", OpIterator.class, System.out.getClass());
-                m.invoke(c.newInstance(), physicalPlan,System.out);
+                m.invoke(c.newInstance(), physicalPlan, System.out);
             } catch (ClassNotFoundException e) {
             } catch (SecurityException e) {
             } catch (NoSuchMethodException e) {
@@ -326,7 +327,7 @@ public class Parser {
         int tableId;
         try {
             tableId = Database.getCatalog().getTableId(s.getTable()); // will
-                                                                      // fall
+            // fall
             // through if
             // table
             // doesn't
@@ -400,10 +401,10 @@ public class Parser {
         int id;
         try {
             id = Database.getCatalog().getTableId(s.getTable()); // will fall
-                                                                 // through if
-                                                                 // table
-                                                                 // doesn't
-                                                                 // exist
+            // through if
+            // table
+            // doesn't
+            // exist
         } catch (NoSuchElementException e) {
             throw new simpledb.ParsingException("Unknown table : "
                     + s.getTable());
@@ -579,9 +580,9 @@ public class Parser {
     }
 
     // Basic SQL completions
-    public static final String[] SQL_COMMANDS = { "select", "from", "where",
+    public static final String[] SQL_COMMANDS = {"select", "from", "where",
             "group by", "max(", "min(", "avg(", "count", "rollback", "commit",
-            "insert", "delete", "values", "into" };
+            "insert", "delete", "values", "into"};
 
     public static void main(String argv[]) throws IOException {
 
@@ -704,8 +705,8 @@ public class Parser {
 
 class TupleArrayIterator implements OpIterator {
     /**
-	 *
-	 */
+     *
+     */
     private static final long serialVersionUID = 1L;
     ArrayList<Tuple> tups;
     Iterator<Tuple> it = null;
@@ -718,7 +719,9 @@ class TupleArrayIterator implements OpIterator {
         it = tups.iterator();
     }
 
-    /** @return true if the iterator has more items. */
+    /**
+     * @return true if the iterator has more items.
+     */
     public boolean hasNext() throws DbException, TransactionAbortedException {
         return it.hasNext();
     }
@@ -728,7 +731,7 @@ class TupleArrayIterator implements OpIterator {
      * from a child operator or an access method).
      *
      * @return The next tuple in the iterator, or null if there are no more
-     *         tuples.
+     * tuples.
      */
     public Tuple next() throws DbException, TransactionAbortedException,
             NoSuchElementException {
@@ -738,8 +741,7 @@ class TupleArrayIterator implements OpIterator {
     /**
      * Resets the iterator to the start.
      *
-     * @throws DbException
-     *             When rewind is unsupported.
+     * @throws DbException When rewind is unsupported.
      */
     public void rewind() throws DbException, TransactionAbortedException {
         it = tups.iterator();

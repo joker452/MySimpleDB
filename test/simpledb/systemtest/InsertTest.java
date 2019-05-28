@@ -2,14 +2,16 @@ package simpledb.systemtest;
 
 import java.io.IOException;
 import java.util.ArrayList;
+
 import simpledb.*;
 
 import static org.junit.Assert.*;
+
 import org.junit.Test;
 
 public class InsertTest extends SimpleDbTestBase {
     private void validateInsert(int columns, int sourceRows, int destinationRows)
-                throws DbException, IOException, TransactionAbortedException {
+            throws DbException, IOException, TransactionAbortedException {
         // Create the two tables
         ArrayList<ArrayList<Integer>> sourceTuples = new ArrayList<ArrayList<Integer>>();
         HeapFile source = SystemTestUtil.createRandomHeapFile(
@@ -48,27 +50,33 @@ public class InsertTest extends SimpleDbTestBase {
         SystemTestUtil.matchTuples(destination, sourceTuples);
     }
 
-    @Test public void testEmptyToEmpty()
+    @Test
+    public void testEmptyToEmpty()
             throws IOException, DbException, TransactionAbortedException {
         validateInsert(3, 0, 0);
     }
 
-    @Test public void testEmptyToOne()
+    @Test
+    public void testEmptyToOne()
             throws IOException, DbException, TransactionAbortedException {
         validateInsert(8, 0, 1);
     }
 
-    @Test public void testOneToEmpty()
+    @Test
+    public void testOneToEmpty()
             throws IOException, DbException, TransactionAbortedException {
         validateInsert(3, 1, 0);
     }
 
-    @Test public void testOneToOne()
+    @Test
+    public void testOneToOne()
             throws IOException, DbException, TransactionAbortedException {
         validateInsert(1, 1, 1);
     }
 
-    /** Make test compatible with older version of ant. */
+    /**
+     * Make test compatible with older version of ant.
+     */
     public static junit.framework.Test suite() {
         return new junit.framework.JUnit4TestAdapter(InsertTest.class);
     }

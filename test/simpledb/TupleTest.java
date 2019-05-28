@@ -1,6 +1,7 @@
 package simpledb;
 
 import static org.junit.Assert.assertEquals;
+
 import junit.framework.JUnit4TestAdapter;
 
 import org.junit.Test;
@@ -12,7 +13,8 @@ public class TupleTest extends SimpleDbTestBase {
     /**
      * Unit test for Tuple.getField() and Tuple.setField()
      */
-    @Test public void modifyFields() {
+    @Test
+    public void modifyFields() {
         TupleDesc td = Utility.getTupleDesc(2);
 
         Tuple tup = new Tuple(td);
@@ -32,7 +34,8 @@ public class TupleTest extends SimpleDbTestBase {
     /**
      * Unit test for Tuple.getTupleDesc()
      */
-    @Test public void getTupleDesc() {
+    @Test
+    public void getTupleDesc() {
         TupleDesc td = Utility.getTupleDesc(5);
         Tuple tup = new Tuple(td);
         assertEquals(td, tup.getTupleDesc());
@@ -41,20 +44,21 @@ public class TupleTest extends SimpleDbTestBase {
     /**
      * Unit test for Tuple.getRecordId() and Tuple.setRecordId()
      */
-    @Test public void modifyRecordId() {
+    @Test
+    public void modifyRecordId() {
         Tuple tup1 = new Tuple(Utility.getTupleDesc(1));
-        HeapPageId pid1 = new HeapPageId(0,0);
+        HeapPageId pid1 = new HeapPageId(0, 0);
         RecordId rid1 = new RecordId(pid1, 0);
         tup1.setRecordId(rid1);
 
-	try {
-	    assertEquals(rid1, tup1.getRecordId());
-	} catch (java.lang.UnsupportedOperationException e) {
-		//rethrow the exception with an explanation
-    	throw new UnsupportedOperationException("modifyRecordId() test failed due to " +
-    			"RecordId.equals() not being implemented.  This is not required for Lab 1, " +
-    			"but should pass when you do implement the RecordId class.");
-	}
+        try {
+            assertEquals(rid1, tup1.getRecordId());
+        } catch (java.lang.UnsupportedOperationException e) {
+            //rethrow the exception with an explanation
+            throw new UnsupportedOperationException("modifyRecordId() test failed due to " +
+                    "RecordId.equals() not being implemented.  This is not required for Lab 1, " +
+                    "but should pass when you do implement the RecordId class.");
+        }
     }
 
     /**

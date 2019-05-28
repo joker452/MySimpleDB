@@ -13,7 +13,7 @@ public class Insert extends Operator {
     private OpIterator child;
     private final int tableId;
     private Tuple result = null;
-    private final TupleDesc td = new TupleDesc(new Type[] {Type.INT_TYPE});
+    private final TupleDesc td = new TupleDesc(new Type[]{Type.INT_TYPE});
 
     /**
      * Constructor.
