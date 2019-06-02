@@ -308,6 +308,8 @@ public class BTreeLeafPage extends BTreePage {
      *                     is mismatch.
      */
     public void insertTuple(Tuple t) throws DbException {
+        int a;
+
         if (!t.getTupleDesc().equals(td))
             throw new DbException("type mismatch, in addTuple");
 
@@ -352,10 +354,14 @@ public class BTreeLeafPage extends BTreePage {
 
         // insert new record into the correct spot in sorted order
         markSlotUsed(goodSlot, true);
-        Debug.log(1, "BTreeLeafPage.insertTuple: new tuple, tableId = %d pageId = %d slotId = %d", pid.getTableId(), pid.getPageNumber(), goodSlot);
+        Debug.log(1, "BTreeLeafPage.insertTuple: new tuple, tableId = %d pageId = %d slotId = %d",
+                pid.getTableId(), pid.getPageNumber(), goodSlot);
         RecordId rid = new RecordId(pid, goodSlot);
         t.setRecordId(rid);
         tuples[goodSlot] = t;
+//        if (((IntField) t.getField(keyField)).getValue() == (48706)) {
+//            System.out.println(goodSlot);
+//        }
     }
 
     /**

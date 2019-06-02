@@ -264,8 +264,8 @@ public class BTreeFile implements DbFile {
             if (it.hasNext()) {
                 Tuple t = it.next();
                 leftmost = t;
-                newPage.insertTuple(t);
                 page.deleteTuple(t);
+                newPage.insertTuple(t);
             }
         }
 
@@ -285,7 +285,8 @@ public class BTreeFile implements DbFile {
         }
         page.setRightSiblingId(newPage.getId());
         newPage.setLeftSiblingId(page.getId());
-        newPage.setParentId(page.getParentId());
+        updateParentPointer(tid, dirtypages, parent.getId(), newPage.getId());
+
         if (field.compare(Op.GREATER_THAN, leftmost.getField(keyField)))
             return newPage;
         else
@@ -325,7 +326,62 @@ public class BTreeFile implements DbFile {
         // the parent pointers of all the children moving to the new page.  updateParentPointers()
         // will be useful here.  Return the page into which an entry with the given key field
         // should be inserted.
-        return null;
+
+        // get new page
+        BTreeInternalPage newPage = (BTreeInternalPage) getEmptyPage(tid, dirtypages, BTreePageId.INTERNAL);
+        int d = page.getNumEntries() / 2;
+        boolean isEven = page.getNumEntries() % 2 == 0;
+        Iterator<BTreeEntry> it = page.reverseIterator();
+        // always move less than half entries first
+        for (int i = 0; i < d - 1; ++i) {
+            if (it.hasNext()) {
+                BTreeEntry e = it.next();
+                page.deleteKeyAndRightChild(e);
+                newPage.insertEntry(e);
+            }
+        }
+        // if there are even number of entries, make sure after insertion and push up
+        // entries in both pages are equal
+        BTreeEntry pushUp = null;
+        BTreeEntry cache = null;
+        if (isEven) {
+            if (it.hasNext()) {
+                BTreeEntry e = it.next();
+                if (field.compare(Op.GREATER_THAN, e.getKey())) {
+                    pushUp = e;
+                }
+                cache = e;
+            }
+        }
+        if (pushUp == null) {
+            if (cache == null) {
+                if (it.hasNext()) {
+                    BTreeEntry e = it.next();
+                    page.deleteKeyAndRightChild(e);
+                    newPage.insertEntry(e);
+                }
+            } else {
+                page.deleteKeyAndRightChild(cache);
+                newPage.insertEntry(cache);
+            }
+            if (it.hasNext()) {
+                pushUp = it.next();
+            }
+        }
+
+
+        BTreeInternalPage parent = getParentWithEmptySlots(tid, dirtypages, page.getParentId(), field);
+        page.deleteKeyAndRightChild(pushUp);
+        pushUp.setLeftChild(page.getId());
+        pushUp.setRightChild(newPage.getId());
+        parent.insertEntry(pushUp);
+
+        updateParentPointers(tid, dirtypages, newPage);
+
+        if (field.compare(Op.GREATER_THAN, pushUp.getKey()))
+            return newPage;
+        else
+            return page;
     }
 
     /**
@@ -390,7 +446,8 @@ public class BTreeFile implements DbFile {
      * @throws IOException
      * @throws TransactionAbortedException
      */
-    private void updateParentPointer(TransactionId tid, HashMap<PageId, Page> dirtypages, BTreePageId pid, BTreePageId child)
+    private void updateParentPointer(TransactionId tid, HashMap<PageId, Page> dirtypages,
+                                     BTreePageId pid, BTreePageId child)
             throws DbException, IOException, TransactionAbortedException {
 
         BTreePage p = (BTreePage) getPage(tid, dirtypages, child, Permissions.READ_ONLY);

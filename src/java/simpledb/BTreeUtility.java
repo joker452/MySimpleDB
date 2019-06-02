@@ -192,6 +192,7 @@ public class BTreeUtility {
                                             int minValue, int maxValue, Map<Integer, Integer> columnSpecification,
                                             ArrayList<ArrayList<Integer>> tuples) {
 
+
         Random r = new Random();
 
         // Fill the tuples list with generated values
@@ -779,8 +780,8 @@ public class BTreeUtility {
         Object elock;
 
         /**
-         * @param bf  the B+ tree file from which we want to delete the tuple(s)
-         * @param the list of tuples to delete
+         * @param bf             the B+ tree file from which we want to delete the tuple(s)
+         * @param insertedTuples the list of tuples to delete
          */
         public BTreeDeleter(BTreeFile bf, BlockingQueue<ArrayList<Integer>> insertedTuples) {
             init(bf, insertedTuples);
