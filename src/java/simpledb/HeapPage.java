@@ -254,7 +254,7 @@ public class HeapPage implements Page {
         if (rid.getPageId().equals(pid) && rid.getTupleNumber() < numSlots && isSlotUsed(rid.getTupleNumber())) {
             markSlotUsed(rid.getTupleNumber(), false);
         } else
-            throw new DbException("tupe is not on the page or tuple slot is already empty");
+            throw new DbException("tuple is not on the page or tuple slot is already empty");
     }
 
     /**

@@ -498,11 +498,11 @@ public class BTreeLeafPage extends BTreePage {
      *
      * @param i - the index of the tuple
      * @return the ith tuple in the page
-     * @throws NoSuchElementException
+     * @throws NoSuchElementException if index is illegal
      */
     Tuple getTuple(int i) throws NoSuchElementException {
 
-        if (i >= tuples.length)
+        if (i >= tuples.length || i < 0)
             throw new NoSuchElementException();
 
         try {
@@ -524,8 +524,8 @@ public class BTreeLeafPage extends BTreePage {
  * Helper class that implements the Java Iterator for tuples on a BTreeLeafPage.
  */
 class BTreeLeafPageIterator implements Iterator<Tuple> {
-    int curTuple = 0;
-    Tuple nextToReturn = null;
+    private int curTuple = 0;
+    private Tuple nextToReturn = null;
     BTreeLeafPage p;
 
     public BTreeLeafPageIterator(BTreeLeafPage p) {

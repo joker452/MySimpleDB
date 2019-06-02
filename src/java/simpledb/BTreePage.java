@@ -41,7 +41,6 @@ public abstract class BTreePage implements Page {
      * <p>
      *
      * @param id   - the id of this page
-     * @param data - the raw data of this page
      * @param key  - the field which the index is keyed on
      * @see Database#getCatalog
      * @see Catalog#getTupleDesc

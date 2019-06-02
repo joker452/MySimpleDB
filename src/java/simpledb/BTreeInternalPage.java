@@ -560,14 +560,14 @@ public class BTreeInternalPage extends BTreePage {
     }
 
     /**
-     * Returns the number of entries (keys) currently stored on this page
+     * Returns the number of entries (keys) currently stored on this page slot 0 excluded
      */
     public int getNumEntries() {
         return numSlots - getNumEmptySlots() - 1;
     }
 
     /**
-     * Returns the number of empty slots on this page.
+     * Returns the number of empty slots on this page. slot 0 excluded
      */
     public int getNumEmptySlots() {
         int cnt = 0;

@@ -44,36 +44,42 @@ public class IntField implements Field {
      * Compare the specified field to the value of this Field.
      * Return semantics are as specified by Field.compare
      *
-     * @throws IllegalCastException if val is not an IntField
+     * @throws ClassCastException if val is not an IntField
      * @see Field#compare
      */
     public boolean compare(Predicate.Op op, Field val) {
 
-        IntField iVal = (IntField) val;
 
-        switch (op) {
-            case EQUALS:
-                return value == iVal.value;
-            case NOT_EQUALS:
-                return value != iVal.value;
+        if (val instanceof IntField) {
+            IntField iVal = (IntField) val;
 
-            case GREATER_THAN:
-                return value > iVal.value;
+            switch (op) {
+                case EQUALS:
+                    return value == iVal.value;
+                case NOT_EQUALS:
+                    return value != iVal.value;
 
-            case GREATER_THAN_OR_EQ:
-                return value >= iVal.value;
+                case GREATER_THAN:
+                    return value > iVal.value;
 
-            case LESS_THAN:
-                return value < iVal.value;
+                case GREATER_THAN_OR_EQ:
+                    return value >= iVal.value;
 
-            case LESS_THAN_OR_EQ:
-                return value <= iVal.value;
+                case LESS_THAN:
+                    return value < iVal.value;
 
-            case LIKE:
-                return value == iVal.value;
-        }
+                case LESS_THAN_OR_EQ:
+                    return value <= iVal.value;
 
-        return false;
+                case LIKE:
+                    return value == iVal.value;
+            }
+
+            return false;
+        } else
+            throw new ClassCastException();
+
+
     }
 
     /**
