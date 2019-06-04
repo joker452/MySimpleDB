@@ -369,13 +369,14 @@ public class BTreeFile implements DbFile {
             }
         }
 
-
+        // get parent, push up entry from child
         BTreeInternalPage parent = getParentWithEmptySlots(tid, dirtypages, page.getParentId(), field);
         page.deleteKeyAndRightChild(pushUp);
         pushUp.setLeftChild(page.getId());
         pushUp.setRightChild(newPage.getId());
         parent.insertEntry(pushUp);
 
+        // set pointers
         updateParentPointers(tid, dirtypages, newPage);
 
         if (field.compare(Op.GREATER_THAN, pushUp.getKey()))
@@ -659,13 +660,32 @@ public class BTreeFile implements DbFile {
      * @param isRightSibling - whether the sibling is a right-sibling
      * @throws DbException
      */
-    protected void stealFromLeafPage(BTreeLeafPage page, BTreeLeafPage sibling,
-                                     BTreeInternalPage parent, BTreeEntry entry, boolean isRightSibling) throws DbException {
+    protected void stealFromLeafPage(BTreeLeafPage page, BTreeLeafPage sibling, BTreeInternalPage parent,
+                                     BTreeEntry entry, boolean isRightSibling) throws DbException {
         // some code goes here
-        //
         // Move some of the tuples from the sibling to the page so
         // that the tuples are evenly distributed. Be sure to update
         // the corresponding parent entry.
+
+        int entryMove = (sibling.getNumTuples() - page.getNumTuples()) / 2;
+
+        // redistribute entries
+        Tuple t = null;
+        Iterator<Tuple> it = (isRightSibling) ? sibling.iterator() : sibling.reverseIterator();
+        for (int i = 0; i < entryMove; ++i) {
+            if (it.hasNext()) {
+                t = it.next();
+                sibling.deleteTuple(t);
+                page.insertTuple(t);
+            }
+        }
+
+        // newKey is always the lefmost key of the right page, regardless of it's page or sibling
+        Field newKey = (isRightSibling) ? it.next().getField(keyField) : t.getField(keyField);
+
+        // update parent entry
+        entry.setKey(newKey);
+        parent.updateEntry(entry);
     }
 
     /**
@@ -687,7 +707,8 @@ public class BTreeFile implements DbFile {
      * @see #stealFromRightInternalPage(TransactionId, HashMap, BTreeInternalPage, BTreeInternalPage, BTreeInternalPage, BTreeEntry)
      */
     private void handleMinOccupancyInternalPage(TransactionId tid, HashMap<PageId, Page> dirtypages,
-                                                BTreeInternalPage page, BTreeInternalPage parent, BTreeEntry leftEntry, BTreeEntry rightEntry)
+                                                BTreeInternalPage page, BTreeInternalPage parent,
+                                                BTreeEntry leftEntry, BTreeEntry rightEntry)
             throws DbException, IOException, TransactionAbortedException {
         BTreePageId leftSiblingId = null;
         BTreePageId rightSiblingId = null;
@@ -734,13 +755,45 @@ public class BTreeFile implements DbFile {
      * @see #updateParentPointers(TransactionId, HashMap, BTreeInternalPage)
      */
     protected void stealFromLeftInternalPage(TransactionId tid, HashMap<PageId, Page> dirtypages,
-                                             BTreeInternalPage page, BTreeInternalPage leftSibling, BTreeInternalPage parent,
-                                             BTreeEntry parentEntry) throws DbException, IOException, TransactionAbortedException {
+                                             BTreeInternalPage page, BTreeInternalPage leftSibling,
+                                             BTreeInternalPage parent, BTreeEntry parentEntry)
+            throws DbException, IOException, TransactionAbortedException {
         // some code goes here
         // Move some of the entries from the left sibling to the page so
         // that the entries are evenly distributed. Be sure to update
         // the corresponding parent entry. Be sure to update the parent
         // pointers of all children in the entries that were moved.
+
+        int entryMove = (leftSibling.getNumEntries() - page.getNumEntries()) / 2;
+
+        // move entries, including the one in the parent, sequentially
+        Iterator<BTreeEntry> it = page.iterator();
+        // set child pointer before pull down
+        BTreeEntry e = null;
+        if (it.hasNext())
+            e = it.next();
+        parentEntry.setRightChild(e.getLeftChild());
+        it = leftSibling.reverseIterator();
+        e = it.next();
+        parentEntry.setLeftChild(e.getRightChild());
+        // pull down
+        parent.deleteKeyAndRightChild(parentEntry);
+        page.insertEntry(parentEntry);
+
+        for (int i = 0; i < entryMove - 1; ++i) {
+            if (it.hasNext()) {
+                leftSibling.deleteKeyAndRightChild(e);
+                page.insertEntry(e);
+                e = it.next();
+            }
+        }
+
+        // e is the entry that should be pushed up
+        leftSibling.deleteKeyAndRightChild(e);
+        e.setLeftChild(leftSibling.getId());
+        e.setRightChild(page.getId());
+        parent.insertEntry(e);
+        updateParentPointers(tid, dirtypages, page);
     }
 
     /**
@@ -761,13 +814,46 @@ public class BTreeFile implements DbFile {
      * @see #updateParentPointers(TransactionId, HashMap, BTreeInternalPage)
      */
     protected void stealFromRightInternalPage(TransactionId tid, HashMap<PageId, Page> dirtypages,
-                                              BTreeInternalPage page, BTreeInternalPage rightSibling, BTreeInternalPage parent,
-                                              BTreeEntry parentEntry) throws DbException, IOException, TransactionAbortedException {
+                                              BTreeInternalPage page, BTreeInternalPage rightSibling,
+                                              BTreeInternalPage parent, BTreeEntry parentEntry)
+            throws DbException, IOException, TransactionAbortedException {
         // some code goes here
         // Move some of the entries from the right sibling to the page so
         // that the entries are evenly distributed. Be sure to update
         // the corresponding parent entry. Be sure to update the parent
         // pointers of all children in the entries that were moved.
+
+        int entryMove = (rightSibling.getNumEntries() - page.getNumEntries()) / 2;
+
+        // move entries, including the one in the parent, sequentially
+        Iterator<BTreeEntry> it = page.reverseIterator();
+        // set child pointer before pull down
+        BTreeEntry e = null;
+        if (it.hasNext())
+            e = it.next();
+        parentEntry.setLeftChild(e.getRightChild());
+        it = rightSibling.iterator();
+        e = it.next();
+        parentEntry.setRightChild(e.getLeftChild());
+        // pull down
+        parent.deleteKeyAndLeftChild(parentEntry);
+        page.insertEntry(parentEntry);
+
+        for (int i = 0; i < entryMove - 1; ++i) {
+            if (it.hasNext()) {
+                rightSibling.deleteKeyAndLeftChild(e);
+                page.insertEntry(e);
+                e = it.next();
+            }
+        }
+
+        // e is the entry that should be pushed up
+        rightSibling.deleteKeyAndLeftChild(e);
+        e.setLeftChild(page.getId());
+        e.setRightChild(rightSibling.getId());
+        parent.insertEntry(e);
+        updateParentPointers(tid, dirtypages, page);
+
     }
 
     /**

@@ -256,7 +256,8 @@ public class BufferPool {
         // not necessary for lab1
         if (pid != null) {
             Page p = pages.get(pid);
-            Database.getCatalog().getDatabaseFile(pid.getTableId()).writePage(p);
+            if (p.isDirty() != null)
+                Database.getCatalog().getDatabaseFile(pid.getTableId()).writePage(p);
             p.markDirty(false, null);
         }
     }
