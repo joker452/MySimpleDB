@@ -110,6 +110,7 @@ public class BTreeFileInsertTest extends SimpleDbTestBase {
         dirtypages.put(leftPageId, leftPage);
         dirtypages.put(parentId, parent);
         BTreeInternalPage page = empty.splitInternalPage(tid, dirtypages, leftPage, field);
+        BTreeChecker.checkRep(empty, tid, new HashMap<PageId, Page>(), true);
         BTreeInternalPage otherPage;
         assertEquals(1, parent.getNumEntries());
         BTreeEntry parentEntry = parent.iterator().next();
@@ -159,6 +160,7 @@ public class BTreeFileInsertTest extends SimpleDbTestBase {
         dirtypages.put(leftPageId, leftPage);
         dirtypages.put(parentId, parent);
         BTreeLeafPage page = empty.splitLeafPage(tid, dirtypages, leftPage, field);
+        BTreeChecker.checkRep(empty, tid, new HashMap<PageId, Page>(), true);
         assertTrue(page.getLeftSiblingId() != null || page.getRightSiblingId() != null);
         BTreeLeafPage otherPage;
         if (page.getLeftSiblingId() != null) {
