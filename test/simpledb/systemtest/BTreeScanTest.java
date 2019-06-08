@@ -1,7 +1,5 @@
 package simpledb.systemtest;
 
-import simpledb.systemtest.SystemTestUtil;
-
 import static org.junit.Assert.*;
 
 import java.io.File;
@@ -14,7 +12,6 @@ import java.util.Random;
 import java.util.Iterator;
 
 import org.junit.Test;
-import org.junit.Before;
 
 import simpledb.*;
 import simpledb.Predicate.Op;

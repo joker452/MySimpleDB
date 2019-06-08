@@ -118,8 +118,7 @@ public class BTreeScan implements OpIterator {
         return it.hasNext();
     }
 
-    public Tuple next() throws NoSuchElementException,
-            TransactionAbortedException, DbException {
+    public Tuple next() throws NoSuchElementException, TransactionAbortedException, DbException {
         if (!isOpen)
             throw new IllegalStateException("iterator is closed");
 

@@ -16,7 +16,7 @@ public class SeqScan implements OpIterator {
     private String tableAlias;
     private TupleDesc tdWithPrefix = null;
     private boolean isOpen = false;
-    private DbFileIterator it = null;
+    private transient DbFileIterator it = null;
 
     /**
      * Creates a sequential scan over the specified table as a part of the

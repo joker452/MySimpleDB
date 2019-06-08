@@ -1,7 +1,5 @@
 package simpledb.systemtest;
 
-import simpledb.systemtest.SystemTestUtil;
-
 import static org.junit.Assert.*;
 
 import java.io.File;
@@ -14,7 +12,6 @@ import java.util.Random;
 import java.util.Iterator;
 
 import org.junit.Test;
-import org.junit.Before;
 
 import simpledb.*;
 import simpledb.Predicate.Op;
@@ -110,7 +107,6 @@ public class BTreeReverseScanTest extends SimpleDbTestBase {
         for (int i = 0; i < 10; ++i) {
             assertTrue(scan.hasNext());
             Tuple t = scan.next();
-//            System.out.println(tuples.get(i) + " " + SystemTestUtil.tupleToList(t));
             assertEquals(tuples.get(i), SystemTestUtil.tupleToList(t));
         }
 
