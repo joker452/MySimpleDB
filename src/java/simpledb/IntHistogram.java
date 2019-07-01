@@ -4,7 +4,6 @@ package simpledb;
  * A class to represent a fixed-width histogram over a single integer-based field.
  */
 public class IntHistogram {
-
     /**
      * Create a new IntHistogram.
      * <p>
@@ -21,8 +20,21 @@ public class IntHistogram {
      * @param min     The minimum integer value that will ever be passed to this class for histogramming
      * @param max     The maximum integer value that will ever be passed to this class for histogramming
      */
+    private final int[] histBuckets;
+    private final int min;
+    private final int max;
+    private final double histRange;
+    private int numVal;
+
     public IntHistogram(int buckets, int min, int max) {
         // some code goes here
+        histBuckets = new int[buckets];
+        for (int i = 0; i < buckets; ++i)
+            histBuckets[i] = 0;
+        this.min = min;
+        this.max = max;
+        histRange = (max - min + 1) / (double) buckets;
+        numVal = 0;
     }
 
     /**
@@ -32,6 +44,11 @@ public class IntHistogram {
      */
     public void addValue(int v) {
         // some code goes here
+        int index = (int) ((v - min + 1) / histRange);
+        if (index * histRange == (double) (v - min + 1))
+            --index;
+        ++histBuckets[index];
+        ++numVal;
     }
 
     /**
@@ -47,7 +64,56 @@ public class IntHistogram {
     public double estimateSelectivity(Predicate.Op op, int v) {
 
         // some code goes here
-        return -1.0;
+        int partNum = 0;
+        // if v < min or v > max, we can simply return the selectivity
+        if (v < min) {
+            if (op == Predicate.Op.GREATER_THAN_OR_EQ || op == Predicate.Op.GREATER_THAN
+                    || op == Predicate.Op.NOT_EQUALS)
+                return 1.0;
+            else
+                return 0.0;
+        }
+        if (v > max) {
+            if (op == Predicate.Op.LESS_THAN_OR_EQ || op == Predicate.Op.LESS_THAN
+                    || op == Predicate.Op.NOT_EQUALS)
+                return 1.0;
+            else
+                return 0.0;
+        }
+        int index = (int) ((v - min + 1) / histRange);
+        if (index * histRange == (double) (v - min + 1))
+            --index;
+        int rangeRight = (int) (min + (index + 1) * histRange - 1);
+        int rangeLeft = (int) (min + index * histRange);
+
+        if (op == Predicate.Op.EQUALS)
+            return histBuckets[index] / (numVal * histRange);
+        else if (op == Predicate.Op.NOT_EQUALS)
+            return 1 - histBuckets[index] / (numVal * histRange);
+        else if (op == Predicate.Op.GREATER_THAN) {
+            double fraction = (double) (rangeRight - v) / (rangeRight - rangeLeft + 1);
+            for (int i = index + 1; i < histBuckets.length; ++i)
+                partNum += histBuckets[i];
+            return (partNum + fraction * histBuckets[index]) / numVal;
+        }
+        else if (op == Predicate.Op.LESS_THAN) {
+            double fraction = (double) (rangeRight - v) / (rangeRight - rangeLeft + 1);
+            for (int i = 0; i < index; ++i)
+                partNum += histBuckets[i];
+            return (partNum + fraction * histBuckets[index]) / numVal;
+        }
+        else if (op == Predicate.Op.GREATER_THAN_OR_EQ) {
+            double fraction = (double) (rangeRight - v + 1) / (rangeRight - rangeLeft + 1);
+            for (int i = index + 1; i < histBuckets.length; ++i)
+                partNum += histBuckets[i];
+            return (partNum + fraction * histBuckets[index]) / numVal;
+        }
+        else {
+            double fraction = (double) (rangeRight - v + 1) / (rangeRight - rangeLeft + 1);
+            for (int i = 0; i < index; ++i)
+                partNum += histBuckets[i];
+            return (partNum + fraction * histBuckets[index]) / numVal;
+        }
     }
 
     /**
@@ -59,7 +125,7 @@ public class IntHistogram {
      */
     public double avgSelectivity() {
         // some code goes here
-        return 1.0;
+        return (double) numVal / histBuckets.length;
     }
 
     /**
@@ -67,6 +133,14 @@ public class IntHistogram {
      */
     public String toString() {
         // some code goes here
-        return null;
+        StringBuilder histDescription = new StringBuilder();
+        histDescription.append("IntHistogram with value in [" + min + ", " + max + "] and " +
+                histBuckets.length + "buckets\n");
+        for (int i = 0; i < histBuckets.length; ++i) {
+            int rangeLeft = (int) (min + i * histRange);
+            int rangeRight = (int) (min + (i + 1) * histRange - 1);
+            histDescription.append("[" + rangeLeft + ", " + rangeRight + "]:" + histBuckets[i] + "\n");
+        }
+        return histDescription.toString();
     }
 }

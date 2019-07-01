@@ -26,6 +26,7 @@ public class StringHistogram {
     private int stringToInt(String s) {
         int i;
         int v = 0;
+        // s[0] << 24 + s[1] << 16 + s[2] << 8 + s[0]
         for (i = 3; i >= 0; i--) {
             if (s.length() > 3 - i) {
                 int ci = (int) s.charAt(3 - i);
