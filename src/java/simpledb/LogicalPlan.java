@@ -261,7 +261,6 @@ public class LogicalPlan {
             LogicalScanNode table = tableIt.next();
             try {
                 TupleDesc td = Database.getCatalog().getDatabaseFile(table.t).getTupleDesc();
-//                int id = 
                 td.fieldNameToIndex(name);
                 if (tableName == null) {
                     tableName = table.alias;
@@ -269,7 +268,7 @@ public class LogicalPlan {
                     throw new ParsingException("Field " + name + " appears in multiple tables; disambiguate by referring to it as tablename." + name);
                 }
             } catch (NoSuchElementException e) {
-                //ignore
+                // no matching field name in current table, just ignore
             }
         }
         if (tableName != null)
@@ -309,7 +308,8 @@ public class LogicalPlan {
      * @return A OpIterator representing this plan.
      * @throws ParsingException if the logical plan is not valid
      */
-    public OpIterator physicalPlan(TransactionId t, Map<String, TableStats> baseTableStats, boolean explain) throws ParsingException {
+    public OpIterator physicalPlan(TransactionId t, Map<String, TableStats> baseTableStats,
+                                   boolean explain) throws ParsingException {
         Iterator<LogicalScanNode> tableIt = tables.iterator();
         HashMap<String, String> equivMap = new HashMap<String, String>();
         HashMap<String, Double> filterSelectivities = new HashMap<String, Double>();
@@ -343,13 +343,13 @@ public class LogicalPlan {
             Type ftyp;
             TupleDesc td = subplanMap.get(lf.tableAlias).getTupleDesc();
 
-            try {//td.fieldNameToIndex(disambiguateName(lf.fieldPureName))
+            try {
                 ftyp = td.getFieldType(td.fieldNameToIndex(lf.fieldQuantifiedName));
             } catch (java.util.NoSuchElementException e) {
                 throw new ParsingException("Unknown field in filter expression " + lf.fieldQuantifiedName);
             }
             if (ftyp == Type.INT_TYPE)
-                f = new IntField(new Integer(lf.c).intValue());
+                f = new IntField(Integer.parseInt(lf.c));
             else
                 f = new StringField(lf.c, Type.STRING_LEN);
 
@@ -364,6 +364,7 @@ public class LogicalPlan {
             TableStats s = statsMap.get(Database.getCatalog().getTableName(this.getTableId(lf.tableAlias)));
 
             double sel = s.estimateSelectivity(subplan.getTupleDesc().fieldNameToIndex(lf.fieldQuantifiedName), lf.p, f);
+            // if referenced multiple times, we do cumulative product
             filterSelectivities.put(lf.tableAlias, filterSelectivities.get(lf.tableAlias) * sel);
 
             //s.addSelectivityFactor(estimateFilterSelectivity(lf,statsMap));
@@ -407,7 +408,7 @@ public class LogicalPlan {
                 throw new ParsingException("Unknown table in WHERE clause " + lj.t2Alias);
 
             OpIterator j;
-            j = jo.instantiateJoin(lj, plan1, plan2);
+            j = JoinOptimizer.instantiateJoin(lj, plan1, plan2);
             subplanMap.put(t1name, j);
 
             if (!isSubqueryJoin) {
@@ -431,7 +432,7 @@ public class LogicalPlan {
             throw new ParsingException("Query does not include join expressions joining all nodes!");
         }
 
-        OpIterator node = (OpIterator) (subplanMap.entrySet().iterator().next().getValue());
+        OpIterator node = subplanMap.entrySet().iterator().next().getValue();
 
         //walk the select list, to determine order in which to project output fields
         ArrayList<Integer> outFields = new ArrayList<Integer>();
@@ -440,10 +441,10 @@ public class LogicalPlan {
             LogicalSelectListNode si = selectList.elementAt(i);
             if (si.aggOp != null) {
                 outFields.add(groupByField != null ? 1 : 0);
+
                 TupleDesc td = node.getTupleDesc();
-//                int  id;
+
                 try {
-//                    id = 
                     td.fieldNameToIndex(si.fname);
                 } catch (NoSuchElementException e) {
                     throw new ParsingException("Unknown field " + si.fname + " in SELECT list");

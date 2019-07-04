@@ -37,8 +37,8 @@ public class JoinOptimizer {
      * @param plan1 The left join node's child
      * @param plan2 The right join node's child
      */
-    public static OpIterator instantiateJoin(LogicalJoinNode lj,
-                                             OpIterator plan1, OpIterator plan2) throws ParsingException {
+    public static OpIterator instantiateJoin(LogicalJoinNode lj, OpIterator plan1,
+                                             OpIterator plan2) throws ParsingException {
 
         int t1id = 0, t2id = 0;
         OpIterator j;
@@ -75,7 +75,7 @@ public class JoinOptimizer {
      * The cost of the join should be calculated based on the join algorithm (or
      * algorithms) that you implemented for Lab 2. It should be a function of
      * the amount of data that must be read over the course of the query, as
-     * well as the number of CPU opertions performed by your join. Assume that
+     * well as the number of CPU operations performed by your join. Assume that
      * the cost of a single predicate application is roughly 1.
      *
      * @param j     A LogicalJoinNode representing the join operation being
@@ -100,7 +100,7 @@ public class JoinOptimizer {
             // HINT: You may need to use the variable "j" if you implemented
             // a join algorithm that's more complicated than a basic
             // nested-loops join.
-            return -1.0;
+            return cost1 + card1 * cost2 + card1 * card2;
         }
     }
 
@@ -134,13 +134,62 @@ public class JoinOptimizer {
      * Estimate the join cardinality of two tables.
      */
     public static int estimateTableJoinCardinality(Predicate.Op joinOp,
-                                                   String table1Alias, String table2Alias, String field1PureName,
-                                                   String field2PureName, int card1, int card2, boolean t1pkey,
-                                                   boolean t2pkey, Map<String, TableStats> stats,
+                                                   String table1Alias, String table2Alias,
+                                                   String field1PureName, String field2PureName,
+                                                   int card1, int card2,
+                                                   boolean t1pkey, boolean t2pkey,
+                                                   Map<String, TableStats> stats,
                                                    Map<String, Integer> tableAliasToId) {
-        int card = 1;
         // some code goes here
-        return card <= 0 ? 1 : card;
+        int card = 1;
+        TupleDesc td1 = Database.getCatalog().getTupleDesc(tableAliasToId.get(table1Alias));
+        TupleDesc td2 = Database.getCatalog().getTupleDesc(tableAliasToId.get(table2Alias));
+        int field1 = td1.fieldNameToIndex(field1PureName);
+        int field2 = td2.fieldNameToIndex(field2PureName);
+        TableStats s1 = stats.get(table1Alias);
+        TableStats s2 = stats.get(table2Alias);
+        double selectivity1, selectivity2;
+
+        switch (joinOp) {
+            case EQUALS:
+                selectivity1 = (s1 == null)? 1.0: s1.avgSelectivity(field1, Predicate.Op.EQUALS);
+                selectivity2 = (s2 == null)? 1.0: s2.avgSelectivity(field2, Predicate.Op.EQUALS);
+                if (t1pkey && t2pkey)
+                    card = (card1 < card2)? (int) (card1 * selectivity1): (int) (card2 * selectivity2);
+                else if (t1pkey)
+                    card = (int) (card2 * selectivity2);
+                else if (t2pkey)
+                    card = (int) (card1 * selectivity1);
+                else
+                    card = (card1 > card2)? (int) (card1 * selectivity1): (int) (card2 * selectivity2);
+                break;
+            case NOT_EQUALS:
+                card = card1 * card2 - estimateTableJoinCardinality(Predicate.Op.EQUALS, table1Alias, table2Alias,
+                        field1PureName, field2PureName, card1, card2,t1pkey, t2pkey,
+                        stats, tableAliasToId);
+                break;
+            case GREATER_THAN:
+                selectivity1 = (s1 == null)? 1.0: s1.avgSelectivity(field1, Predicate.Op.GREATER_THAN);
+                selectivity2 = (s2 == null)? 1.0: s2.avgSelectivity(field2, Predicate.Op.LESS_THAN);
+                card = (int) (card1 * selectivity1 * card2 * selectivity2);
+                break;
+            case GREATER_THAN_OR_EQ:
+                selectivity1 = (s1 == null)? 1.0: s1.avgSelectivity(field1, Predicate.Op.GREATER_THAN_OR_EQ);
+                selectivity2 = (s2 == null)? 1.0: s2.avgSelectivity(field2, Predicate.Op.LESS_THAN_OR_EQ);
+                card = (int) (card1 * selectivity1 * card2 * selectivity2);
+                break;
+            case LESS_THAN:
+                selectivity1 = (s1 == null)? 1.0: s1.avgSelectivity(field1, Predicate.Op.LESS_THAN);
+                selectivity2 = (s2 == null)? 1.0: s2.avgSelectivity(field2, Predicate.Op.GREATER_THAN);
+                card = (int) (card1 * selectivity1 * card2 * selectivity2);
+                break;
+            case LESS_THAN_OR_EQ:
+                selectivity1 = (s1 == null)? 1.0: s1.avgSelectivity(field1, Predicate.Op.LESS_THAN_OR_EQ);
+                selectivity2 = (s2 == null)? 1.0: s2.avgSelectivity(field2, Predicate.Op.GREATER_THAN_OR_EQ);
+                card = (int) (card1 * selectivity1 * card2 * selectivity2);
+                break;
+        }
+        return card;
     }
 
     /**

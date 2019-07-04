@@ -83,13 +83,15 @@ public class IntHistogram {
         int index = (int) ((v - min + 1) / histRange);
         if (index * histRange == (double) (v - min + 1))
             --index;
-        int rangeRight = (int) (min + (index + 1) * histRange - 1);
         int rangeLeft = (int) (min + index * histRange);
+        int rangeRight = (histRange < 1.0) ? rangeLeft: (int) (rangeLeft + histRange - 1);
 
+
+        double histrange = (histRange < 1.0)? 1.0: histRange;
         if (op == Predicate.Op.EQUALS)
-            return histBuckets[index] / (numVal * histRange);
+            return histBuckets[index] / (numVal * histrange);
         else if (op == Predicate.Op.NOT_EQUALS)
-            return 1 - histBuckets[index] / (numVal * histRange);
+            return 1 - histBuckets[index] / (numVal * histrange);
         else if (op == Predicate.Op.GREATER_THAN) {
             double fraction = (double) (rangeRight - v) / (rangeRight - rangeLeft + 1);
             for (int i = index + 1; i < histBuckets.length; ++i)
@@ -123,9 +125,14 @@ public class IntHistogram {
      * join optimization. It may be needed if you want to
      * implement a more efficient optimization
      */
-    public double avgSelectivity() {
+    public double avgSelectivity(Predicate.Op op) {
         // some code goes here
-        return (double) numVal / histBuckets.length;
+        double avg = 0.0;
+        for (int i = min; i <= max; ++i)
+        {
+            avg += estimateSelectivity(op, i);
+        }
+        return avg / (max - min + 1);
     }
 
     /**
@@ -138,7 +145,7 @@ public class IntHistogram {
                 histBuckets.length + "buckets\n");
         for (int i = 0; i < histBuckets.length; ++i) {
             int rangeLeft = (int) (min + i * histRange);
-            int rangeRight = (int) (min + (i + 1) * histRange - 1);
+            int rangeRight = (histRange < 1.0) ? rangeLeft: (int) (rangeLeft + histRange - 1);
             histDescription.append("[" + rangeLeft + ", " + rangeRight + "]:" + histBuckets[i] + "\n");
         }
         return histDescription.toString();

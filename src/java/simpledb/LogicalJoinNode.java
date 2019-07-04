@@ -1,7 +1,7 @@
 package simpledb;
 
 /**
- * A LogicalJoinNode represens the state needed of a join of two
+ * A LogicalJoinNode represents the state needed of a join of two
  * tables in a LogicalQueryPlan
  */
 public class LogicalJoinNode {
@@ -38,7 +38,8 @@ public class LogicalJoinNode {
     public LogicalJoinNode() {
     }
 
-    public LogicalJoinNode(String table1, String table2, String joinField1, String joinField2, Predicate.Op pred) {
+    public LogicalJoinNode(String table1, String table2,
+                           String joinField1, String joinField2, Predicate.Op pred) {
         t1Alias = table1;
         t2Alias = table2;
         String[] tmps = joinField1.split("[.]");
@@ -80,7 +81,8 @@ public class LogicalJoinNode {
     @Override
     public boolean equals(Object o) {
         LogicalJoinNode j2 = (LogicalJoinNode) o;
-        return (j2.t1Alias.equals(t1Alias) || j2.t1Alias.equals(t2Alias)) && (j2.t2Alias.equals(t1Alias) || j2.t2Alias.equals(t2Alias));
+        return (j2.t1Alias.equals(t1Alias) || j2.t1Alias.equals(t2Alias))
+                && (j2.t2Alias.equals(t1Alias) || j2.t2Alias.equals(t2Alias));
     }
 
     @Override

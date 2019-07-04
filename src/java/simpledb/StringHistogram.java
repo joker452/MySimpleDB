@@ -90,7 +90,7 @@ public class StringHistogram {
      * optimization. It may be needed if you want to implement a more
      * efficient optimization
      */
-    public double avgSelectivity() {
-        return hist.avgSelectivity();
+    public double avgSelectivity(Predicate.Op op) {
+        return hist.avgSelectivity(op);
     }
 }

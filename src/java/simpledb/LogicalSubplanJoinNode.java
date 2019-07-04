@@ -35,12 +35,12 @@ public class LogicalSubplanJoinNode extends LogicalJoinNode {
         if (!(o instanceof LogicalSubplanJoinNode))
             return false;
 
-        return (j2.t1Alias.equals(t1Alias) && j2.f1PureName.equals(f1PureName) && ((LogicalSubplanJoinNode) o).subPlan.equals(subPlan));
+        return (j2.t1Alias.equals(t1Alias) && j2.f1PureName.equals(f1PureName)
+                && ((LogicalSubplanJoinNode) o).subPlan.equals(subPlan));
     }
 
     public LogicalSubplanJoinNode swapInnerOuter() {
-        LogicalSubplanJoinNode j2 = new LogicalSubplanJoinNode(t1Alias, f1PureName, subPlan, p);
-        return j2;
+        return new LogicalSubplanJoinNode(t1Alias, f1PureName, subPlan, p);
     }
 
 }

@@ -199,7 +199,11 @@ public class TableStats {
      */
     public double avgSelectivity(int field, Predicate.Op op) {
         // some code goes here
-        return 1.0;
+        TupleDesc td = Database.getCatalog().getDatabaseFile(tableId).getTupleDesc();
+        if (td.getFieldType(field) == Type.INT_TYPE)
+            return ((IntHistogram) hists[field]).avgSelectivity(op);
+        else
+            return ((StringHistogram) hists[field]).avgSelectivity(op);
     }
 
     /**
