@@ -1,5 +1,7 @@
 package simpledb;
 
+import java.util.Random;
+
 /**
  * A class to represent a fixed-width histogram over a single integer-based field.
  */
@@ -128,11 +130,17 @@ public class IntHistogram {
     public double avgSelectivity(Predicate.Op op) {
         // some code goes here
         double avg = 0.0;
-        for (int i = min; i <= max; ++i)
-        {
-            avg += estimateSelectivity(op, i);
+        if (max - min + 1 > 100) {
+            Random r = new Random();
+            for (int i = 0; i < 100; ++i)
+                avg += estimateSelectivity(op, r.nextInt(max - min + 1) + min);
+            return avg / 100;
         }
-        return avg / (max - min + 1);
+        else {
+            for (int i = min; i <= max; ++i)
+                avg += estimateSelectivity(op, i);
+            return avg / (max - min + 1);
+        }
     }
 
     /**

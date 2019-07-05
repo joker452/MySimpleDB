@@ -142,6 +142,7 @@ public class JoinOptimizer {
                                                    Map<String, Integer> tableAliasToId) {
         // some code goes here
         int card = 1;
+        int cardRange, cardEqual;
         TupleDesc td1 = Database.getCatalog().getTupleDesc(tableAliasToId.get(table1Alias));
         TupleDesc td2 = Database.getCatalog().getTupleDesc(tableAliasToId.get(table2Alias));
         int field1 = td1.fieldNameToIndex(field1PureName);
@@ -149,19 +150,20 @@ public class JoinOptimizer {
         TableStats s1 = stats.get(table1Alias);
         TableStats s2 = stats.get(table2Alias);
         double selectivity1, selectivity2;
-
+        double selectivityEqual1 = (s1 == null)? 1.0: s1.avgSelectivity(field1, Predicate.Op.EQUALS);
+        double selectivityEqual2 = (s2 == null)? 1.0: s2.avgSelectivity(field2, Predicate.Op.EQUALS);
+        // the cardinality should always be base * selectivity,
+        // when no stats is available, the selectivity should be 1.0
         switch (joinOp) {
             case EQUALS:
-                selectivity1 = (s1 == null)? 1.0: s1.avgSelectivity(field1, Predicate.Op.EQUALS);
-                selectivity2 = (s2 == null)? 1.0: s2.avgSelectivity(field2, Predicate.Op.EQUALS);
                 if (t1pkey && t2pkey)
-                    card = (card1 < card2)? (int) (card1 * selectivity1): (int) (card2 * selectivity2);
+                    card = (card1 < card2)? (int) (card1 * selectivityEqual1): (int) (card2 * selectivityEqual2);
                 else if (t1pkey)
-                    card = (int) (card2 * selectivity2);
+                    card = (int) (card2 * selectivityEqual2);
                 else if (t2pkey)
-                    card = (int) (card1 * selectivity1);
+                    card = (int) (card1 * selectivityEqual1);
                 else
-                    card = (card1 > card2)? (int) (card1 * selectivity1): (int) (card2 * selectivity2);
+                    card = (card1 > card2)? (int) (card1 * selectivityEqual1): (int) (card2 * selectivityEqual2);
                 break;
             case NOT_EQUALS:
                 card = card1 * card2 - estimateTableJoinCardinality(Predicate.Op.EQUALS, table1Alias, table2Alias,
@@ -171,22 +173,30 @@ public class JoinOptimizer {
             case GREATER_THAN:
                 selectivity1 = (s1 == null)? 1.0: s1.avgSelectivity(field1, Predicate.Op.GREATER_THAN);
                 selectivity2 = (s2 == null)? 1.0: s2.avgSelectivity(field2, Predicate.Op.LESS_THAN);
-                card = (int) (card1 * selectivity1 * card2 * selectivity2);
+                cardRange = (int) (card1 * selectivity1 * card2 * selectivity2);
+                cardEqual = (card1 > card2)? (int) (card1 * selectivityEqual1): (int) (card2 * selectivityEqual2);
+                card = (cardRange > cardEqual)? cardRange: cardEqual + 1;
                 break;
             case GREATER_THAN_OR_EQ:
                 selectivity1 = (s1 == null)? 1.0: s1.avgSelectivity(field1, Predicate.Op.GREATER_THAN_OR_EQ);
                 selectivity2 = (s2 == null)? 1.0: s2.avgSelectivity(field2, Predicate.Op.LESS_THAN_OR_EQ);
-                card = (int) (card1 * selectivity1 * card2 * selectivity2);
+                cardRange = (int) (card1 * selectivity1 * card2 * selectivity2);
+                cardEqual = (card1 > card2)? (int) (card1 * selectivityEqual1): (int) (card2 * selectivityEqual2);
+                card = (cardRange > cardEqual)? cardRange: cardEqual + 1;
                 break;
             case LESS_THAN:
                 selectivity1 = (s1 == null)? 1.0: s1.avgSelectivity(field1, Predicate.Op.LESS_THAN);
                 selectivity2 = (s2 == null)? 1.0: s2.avgSelectivity(field2, Predicate.Op.GREATER_THAN);
-                card = (int) (card1 * selectivity1 * card2 * selectivity2);
+                cardRange = (int) (card1 * selectivity1 * card2 * selectivity2);
+                cardEqual = (card1 > card2)? (int) (card1 * selectivityEqual1): (int) (card2 * selectivityEqual2);
+                card = (cardRange > cardEqual)? cardRange: cardEqual + 1;
                 break;
             case LESS_THAN_OR_EQ:
                 selectivity1 = (s1 == null)? 1.0: s1.avgSelectivity(field1, Predicate.Op.LESS_THAN_OR_EQ);
                 selectivity2 = (s2 == null)? 1.0: s2.avgSelectivity(field2, Predicate.Op.GREATER_THAN_OR_EQ);
-                card = (int) (card1 * selectivity1 * card2 * selectivity2);
+                cardRange = (int) (card1 * selectivity1 * card2 * selectivity2);
+                cardEqual = (card1 > card2)? (int) (card1 * selectivityEqual1): (int) (card2 * selectivityEqual2);
+                card = (cardRange > cardEqual)? cardRange: cardEqual + 1;
                 break;
         }
         return card;
@@ -206,6 +216,7 @@ public class JoinOptimizer {
         els.add(new HashSet<T>());
         // Iterator<Set> it;
         // long start = System.currentTimeMillis();
+
 
         for (int i = 0; i < size; i++) {
             Set<Set<T>> newels = new HashSet<Set<T>>();
@@ -244,10 +255,27 @@ public class JoinOptimizer {
             HashMap<String, Double> filterSelectivities, boolean explain)
             throws ParsingException {
         //Not necessary for labs 1--3
-
         // some code goes here
         //Replace the following
-        return joins;
+        int numTable = joins.size();
+        PlanCache pc = new PlanCache();
+        for (int i = 1; i <= numTable; ++i) {
+            Set<Set<LogicalJoinNode>> subsets = enumerateSubsets(joins, i);
+            for (Set<LogicalJoinNode> s: subsets) {
+                double bestCostSoFar = Double.MAX_VALUE;
+                for (LogicalJoinNode joinToRemove: s) {
+                    CostCard c = computeCostAndCardOfSubplan(stats, filterSelectivities,
+                            joinToRemove, s, bestCostSoFar, pc);
+                    if (c != null) {
+                        bestCostSoFar = c.cost;
+                        pc.addPlan(s, bestCostSoFar, c.card, c.plan);
+                    }
+                }
+            }
+        }
+        if (explain)
+            printJoins(joins, pc, stats, filterSelectivities);
+        return pc.getOrder(new HashSet<>(joins));
     }
 
     // ===================== Private Methods =================================
@@ -318,8 +346,7 @@ public class JoinOptimizer {
             t2card = table2Alias == null ? 0 : stats.get(table2Name)
                     .estimateTableCardinality(
                             filterSelectivities.get(j.t2Alias));
-            rightPkey = table2Alias == null ? false : isPkey(table2Alias,
-                    j.f2PureName);
+            rightPkey = table2Alias != null && isPkey(table2Alias, j.f2PureName);
         } else {
             // news is not empty -- figure best way to join j to news
             prevBest = pc.getOrder(news);
@@ -343,22 +370,20 @@ public class JoinOptimizer {
 
                 t2cost = j.t2Alias == null ? 0 : stats.get(table2Name)
                         .estimateScanCost();
-                t2card = j.t2Alias == null ? 0 : stats.get(table2Name)
-                        .estimateTableCardinality(
-                                filterSelectivities.get(j.t2Alias));
-                rightPkey = j.t2Alias == null ? false : isPkey(j.t2Alias,
-                        j.f2PureName);
+                t2card = j.t2Alias == null ? 0 : stats.get(table2Name).
+                        estimateTableCardinality(filterSelectivities.get(j.t2Alias));
+                rightPkey = j.t2Alias != null && isPkey(j.t2Alias, j.f2PureName);
             } else if (doesJoin(prevBest, j.t2Alias)) { // j.t2 is in prevbest
                 // (both
                 // shouldn't be)
-                t2cost = prevBestCost; // left side just has cost of whatever
-                // left
+                t2cost = prevBestCost; // right side just has cost of whatever
+                // right
                 // subtree is
                 t2card = bestCard;
                 rightPkey = hasPkey(prevBest);
                 t1cost = stats.get(table1Name).estimateScanCost();
-                t1card = stats.get(table1Name).estimateTableCardinality(
-                        filterSelectivities.get(j.t1Alias));
+                t1card = stats.get(table1Name).
+                        estimateTableCardinality(filterSelectivities.get(j.t1Alias));
                 leftPkey = isPkey(j.t1Alias, j.f1PureName);
 
             } else {
@@ -386,8 +411,7 @@ public class JoinOptimizer {
 
         CostCard cc = new CostCard();
 
-        cc.card = estimateJoinCardinality(j, t1card, t2card, leftPkey,
-                rightPkey, stats);
+        cc.card = estimateJoinCardinality(j, t1card, t2card, leftPkey, rightPkey, stats);
         cc.cost = cost1;
         cc.plan = (Vector<LogicalJoinNode>) prevBest.clone();
         cc.plan.addElement(j); // prevbest is left -- add new join to end

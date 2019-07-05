@@ -14,7 +14,7 @@ public interface Aggregator extends Serializable {
      * only be used in lab7, you are not required
      * to implement them until then.
      */
-    public enum Op implements Serializable {
+    enum Op implements Serializable {
         MIN, MAX, SUM, AVG, COUNT,
         /**
          * SUM_COUNT: compute sum and count simultaneously, will be

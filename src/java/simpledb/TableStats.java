@@ -22,6 +22,8 @@ public class TableStats {
      */
     static final int NUM_HIST_BINS = 100;
 
+    int debug = 0;
+
     static final int IOCOSTPERPAGE = 1000;
 
     private final int tableId;
@@ -148,6 +150,7 @@ public class TableStats {
                         ((IntHistogram) hists[i]).addValue(((IntField) t.getField(i)).getValue());
                     else
                         ((StringHistogram) hists[i]).addValue(((StringField) t.getField(i)).getValue());
+                    ++debug;
                 }
             }
         } catch (Exception e) {
