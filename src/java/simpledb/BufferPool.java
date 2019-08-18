@@ -1,6 +1,7 @@
 package simpledb;
 
 import java.io.*;
+import java.util.Iterator;
 import java.util.Set;
 import java.util.ArrayList;
 import java.util.concurrent.ConcurrentHashMap;
@@ -31,7 +32,7 @@ public class BufferPool {
 
     private final int numPages;
 
-    private final LockManager lm;
+    final LockManager lm;
 
     /**
      * Default number of pages passed to the constructor. This is used by
@@ -88,7 +89,7 @@ public class BufferPool {
         lm.grantLock(tid, pid, perm);
         if (!pages.containsKey(pid)) {
             if (pages.size() >= numPages)
-                evictPage();
+                evictPage(tid);
             pages.put(pid, Database.getCatalog().getDatabaseFile(pid.getTableId()).readPage(pid));
             pageOrd.add(pid);
         } else {
@@ -144,6 +145,16 @@ public class BufferPool {
             throws IOException {
         // some code goes here
         // not necessary for lab1|lab2
+        Set<LockManager.PageLock> s = lm.getPages(tid);
+        if (!commit) {
+            for (LockManager.PageLock l: s) {
+                discardPage(l.pid);
+            }
+        }
+
+        for (LockManager.PageLock l: s) {
+            releasePage(tid, l.pid);
+        }
     }
 
     /**
@@ -174,7 +185,7 @@ public class BufferPool {
             // null when not existent
             if (pages.replace(pid, p) == null) {
                 if (pages.size() >= numPages)
-                    evictPage();
+                    evictPage(tid);
                 else
                     pageOrd.add(pid);
                 pages.put(pid, p);
@@ -211,7 +222,7 @@ public class BufferPool {
             // null when not existent
             if (pages.replace(pid, p) == null) {
                 if (pages.size() >= numPages)
-                    evictPage();
+                    evictPage(tid);
                 else
                     pageOrd.add(pid);
                 pages.put(pid, p);
@@ -263,9 +274,10 @@ public class BufferPool {
         // not necessary for lab1
         if (pid != null) {
             Page p = pages.get(pid);
-            if (p.isDirty() != null)
-                Database.getCatalog().getDatabaseFile(pid.getTableId()).writePage(p);
+            Database.getCatalog().getDatabaseFile(pid.getTableId()).writePage(p);
             p.markDirty(false, null);
+            pages.remove(pid);
+            pageOrd.remove(pid);
         }
     }
 
@@ -277,7 +289,15 @@ public class BufferPool {
         // not necessary for lab1|lab2
         Set<LockManager.PageLock> s = lm.getPages(tid);
         for (LockManager.PageLock l: s) {
-            flushPage(l.pid);
+            /* this transaction finishes, we can only flush those with read lock
+            and there is no other transaction holding this page, or current transaction
+            holds a write lock on this page
+            */
+            if (((l.perm.equals(Permissions.READ_ONLY) && l.holdNum == 1)
+                    || l.perm.equals(Permissions.READ_WRITE))
+                    && pages.containsKey(l.pid)) {
+                flushPage(l.pid);
+            }
         }
     }
 
@@ -285,15 +305,32 @@ public class BufferPool {
      * Discards a page from the buffer pool.
      * Flushes the page to disk to ensure dirty pages are updated on disk.
      */
-    private synchronized void evictPage() throws DbException {
+    private synchronized void evictPage(TransactionId tid) throws DbException {
         // some code goes here
         // not necessary for lab1
-        PageId pid = pageOrd.poll();
-        try {
-            flushPage(pid);
-            pages.remove(pid);
-        } catch (IOException e) {
-            e.printStackTrace();
+        PageId pid = null;
+        boolean found = false;
+        /* iterate all pages to find a clean page */
+        for (PageId id: pageOrd) {
+            /* only evict a clean page that isn't locked
+            or locked by current transaction, assume visit is in order
+            so the least recent used page will not be used anymore
+            */
+            if (pages.get(id).isDirty() == null) {
+//            && (lm.getTxId(id).size() == 0 || (lm.getTxId(id).size() == 1 && lm.holdLock(tid, id)))) {
+                pid = id;
+                found = true;
+                break;
+            }
+        }
+        if (found) {
+            try {
+                flushPage(pid);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        } else {
+            throw new DbException("No clean page to evict!");
         }
 
     }

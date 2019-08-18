@@ -1,9 +1,9 @@
 package simpledb;
 
-import java.util.Collections;
+import java.util.Set;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.Set;
+import java.util.Collections;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class LockManager {
@@ -13,8 +13,8 @@ public class LockManager {
      */
     public static class PageLock {
         public final PageId pid;
-        private Permissions perm;
-        private int holdNum;
+        public Permissions perm;
+        public int holdNum;
 
         public PageLock(PageId pid, Permissions perm) {
             this.pid = pid;
@@ -50,8 +50,8 @@ public class LockManager {
     /**
      * Map associates each transaction with its Lock.
      */
-    private final ConcurrentHashMap<TransactionId, Set<PageLock>> txToLock;
-    private final ConcurrentHashMap<PageId, Set<TransactionId>> lockTotx;
+    final ConcurrentHashMap<TransactionId, Set<PageLock>> txToLock;
+    final ConcurrentHashMap<PageId, Set<TransactionId>> lockTotx;
 
     public LockManager() {
         txToLock = new ConcurrentHashMap<>();
@@ -64,84 +64,77 @@ public class LockManager {
     public synchronized void grantLock(TransactionId tid, PageId pid, Permissions perm) {
         Set<PageLock> lockSet = txToLock.get(tid);
         Set<TransactionId> txSet = lockTotx.get(pid);
-        if (perm == Permissions.READ_ONLY) {
-            if (lockSet != null) {
-                if (lockSet.contains(new PageLock(pid, Permissions.READ_ONLY))) {
+        if (perm.equals(Permissions.READ_ONLY)) {
+            /* request a read lock */
+            if (txSet != null) {
+                /* there is some tx hold this lock */
+                if (lockSet != null && lockSet.contains(new PageLock(pid, Permissions.READ_ONLY))) {
                     /* this transaction already holds a lock for this page */
                     return;
                 }
-                if (txSet != null && txSet.size() > 0) {
-                    /* this page's lock is held by other txs */
-                    Iterator<TransactionId> it1 = txSet.iterator();
-                    Set<PageLock> ss = txToLock.get(it1.next());
-                    PageLock lock = null;
-                    for (PageLock p : ss) {
-                        if (p.equals(new PageLock(pid, perm))) {
-                            lock = p;
-                            break;
-                        }
+                /*
+                this page's lock is held by other txs
+                we need to get the lock through any of its holder,
+                so choose one from all of its current holder
+                */
+                Iterator<TransactionId> it = txSet.iterator();
+                Set<PageLock> ss = txToLock.get(it.next());
+                PageLock lock = null;
+                for (PageLock p : ss) {
+                    if (p.equals(new PageLock(pid, perm))) {
+                        lock = p;
+                        break;
                     }
-                    /* try to get the read lock */
-                    if (lock.perm != Permissions.READ_ONLY) {
-                        while (lock.holdNum != 0) {
-                            try {
-                                lock.wait();
-                            } catch (InterruptedException e) {
-
-                            }
-                        }
-                        lock.holdNum++;
-                    }
-
-                    /* update map */
-                    txSet.add(tid);
-                    lockSet.add(lock);
-                } else {
-                    /* this page's lock isn't held by any tx */
-                    PageLock lock = new PageLock(pid, perm);
-                    lockSet.add(lock);
-                    HashSet<TransactionId> s = new HashSet<>();
-                    s.add(tid);
-                    lockTotx.put(pid, s);
                 }
+
+                /* try to get the read lock */
+                if (lock.perm != Permissions.READ_ONLY) {
+                    while (lock.holdNum != 0) {
+                        try {
+                            this.wait();
+                        } catch (InterruptedException e) {
+
+                        }
+                    }
+                }
+                lock.holdNum++;
+                /* update map */
+                if (lockSet == null) {
+                    /* this tx doesn't hold any lock */
+                    HashSet<PageLock> s = new HashSet<>();
+                    s.add(lock);
+                    txToLock.put(tid, s);
+                } else {
+                    lockSet.add(lock);
+                }
+                txSet.add(tid);
             } else {
-                if (txSet != null && txSet.size() > 0) {
-                    /* this page's lock is held by other txs */
-                    Iterator<TransactionId> it1 = txSet.iterator();
-                    Iterator<PageLock> it2 = txToLock.get(it1.next()).iterator();
-                    PageLock lock = it2.next();
-                    /* try to get the read lock */
-                    if (lock.perm != Permissions.READ_ONLY) {
-                        while (lock.holdNum != 0) {
-                            try {
-                                this.wait();
-                            } catch (InterruptedException e) {
-
-                            }
-                        }
-                        lock.holdNum++;
-                    }
-                    /* update map */
-                    txSet.add(tid);
+                /*
+                this lock isn't held by any tx, so allocate
+                a new lock and add it to both maps
+                */
+                PageLock lock = new PageLock(pid, perm);
+                if (lockSet == null) {
+                    /* this tx doesn't hold any lock */
                     HashSet<PageLock> s = new HashSet<>();
                     s.add(lock);
                     txToLock.put(tid, s);
-                    ;
                 } else {
-                    /* this page's lock isn't held by any tx */
-                    PageLock lock = new PageLock(pid, perm);
-                    HashSet<TransactionId> ss = new HashSet<>();
-                    ss.add(tid);
-                    lockTotx.put(pid, ss);
-                    HashSet<PageLock> s = new HashSet<>();
-                    s.add(lock);
-                    txToLock.put(tid, s);
+                    lockSet.add(lock);
                 }
+                HashSet<TransactionId> s = new HashSet<>();
+                s.add(tid);
+                lockTotx.put(pid, s);
             }
         } else {
-            if (txSet != null && txSet.size() > 0) {
-                Iterator<TransactionId> it1 = txSet.iterator();
-                Set<PageLock> ss = txToLock.get(it1.next());
+            /* request a write lock */
+            if (txSet != null) {
+                /*
+                there is some tx holding this lock,
+                find the lock
+                 */
+                Iterator<TransactionId> it = txSet.iterator();
+                Set<PageLock> ss = txToLock.get(it.next());
                 PageLock lock = null;
                 for (PageLock p : ss) {
                     if (p.equals(new PageLock(pid, perm))) {
@@ -158,6 +151,7 @@ public class LockManager {
                         }
                         return;
                     } else {
+                        /* release its read lock to make it possible to get a write lock */
                         releaseLock(tid, pid);
                     }
                 }
@@ -172,6 +166,7 @@ public class LockManager {
                 lock.holdNum++;
                 lock.perm = Permissions.READ_WRITE;
 
+                /* update map */
                 txSet.add(tid);
                 if (lockSet != null) {
                     lockSet.add(lock);
@@ -190,9 +185,9 @@ public class LockManager {
                     s.add(lock);
                     txToLock.put(tid, s);
                 }
-                HashSet<TransactionId> ss = new HashSet<>();
-                ss.add(tid);
-                lockTotx.put(pid, ss);
+                HashSet<TransactionId> s = new HashSet<>();
+                s.add(tid);
+                lockTotx.put(pid, s);
             }
         }
 
@@ -200,31 +195,49 @@ public class LockManager {
 
     public synchronized boolean holdLock(TransactionId tid, PageId pid) {
         /* compare based on PageId, permission doesn't matter here */
-        return txToLock.containsKey(tid) && txToLock.get(tid).contains(new PageLock(pid, Permissions.READ_ONLY));
+        return lockTotx.containsKey(pid) && lockTotx.get(pid) != null
+                && lockTotx.get(pid).contains(tid);
     }
 
     public synchronized void releaseLock(TransactionId tid, PageId pid) {
         if (holdLock(tid, pid)) {
-            /* compare based on PageId, permission doesn't matter here */
+            Set<PageLock> lockSet = txToLock.get(tid);
             Set<TransactionId> txSet = lockTotx.get(pid);
-            Iterator<TransactionId> it1 = txSet.iterator();
-            Set<PageLock> ss = txToLock.get(it1.next());
             PageLock lock = null;
-            for (PageLock p : ss) {
-                if (p.equals(new PageLock(pid, Permissions.READ_WRITE))) {
-                    lock = p;
-                    break;
+            /* compare based on PageId, permission doesn't matter here */
+            PageLock targetLock = new PageLock(pid, Permissions.READ_WRITE);
+            for (PageLock l : lockSet) {
+                if (l.equals(targetLock)) {
+                    lock = l;
                 }
             }
-            txToLock.get(tid).remove(new PageLock(pid, Permissions.READ_WRITE));
-            lockTotx.get(pid).remove(tid);
             lock.holdNum--;
+            /* remove lock from two maps */
+            txSet.remove(tid);
+            if (txSet.size() == 0) {
+                lockTotx.remove(pid);
+            }
+            lockSet.remove(lock);
+            if (lockSet.size() == 0) {
+                txToLock.remove(tid);
+            }
             this.notifyAll();
         }
     }
 
+    /**
+     * get all the lock for the specified transaction
+     */
     public synchronized Set<PageLock> getPages(TransactionId tid) {
-        return txToLock.getOrDefault(tid, Collections.emptySet());
+        /* return a copy of the set to support modification when iterating */
+        return new HashSet<>(txToLock.getOrDefault(tid, Collections.emptySet()));
+    }
+
+    /**
+     * get all the transactions for the specified lock
+     */
+    public synchronized Set<TransactionId> getTxId(PageId pid) {
+        return lockTotx.getOrDefault(pid, Collections.emptySet());
     }
 
 }

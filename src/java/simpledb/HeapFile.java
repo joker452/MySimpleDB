@@ -1,5 +1,6 @@
 package simpledb;
 
+import javax.xml.crypto.Data;
 import java.io.*;
 import java.util.*;
 
@@ -139,6 +140,8 @@ public class HeapFile implements DbFile {
                 done = true;
                 break;
             }
+            /* early release lock */
+            Database.getBufferPool().releasePage(tid, new HeapPageId(getId(), i));
         }
         if (!done) {
             heapPage = new HeapPage(new HeapPageId(getId(), numPages), HeapPage.createEmptyPageData());
@@ -176,6 +179,8 @@ public class HeapFile implements DbFile {
                 pages.add(heapPage);
                 break;
             } catch (DbException e) {
+                /* release unused page */
+                Database.getBufferPool().releasePage(tid, new HeapPageId(getId(), i));
             }
         }
 
