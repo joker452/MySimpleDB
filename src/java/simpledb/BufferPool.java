@@ -1,6 +1,7 @@
 package simpledb;
 
 import java.io.*;
+import java.util.Set;
 import java.util.ArrayList;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
@@ -30,6 +31,8 @@ public class BufferPool {
 
     private final int numPages;
 
+    private final LockManager lm;
+
     /**
      * Default number of pages passed to the constructor. This is used by
      * other classes. BufferPool should use the numPages argument to the
@@ -47,6 +50,7 @@ public class BufferPool {
         pages = new ConcurrentHashMap<>();
         pageOrd = new ConcurrentLinkedDeque<>();
         this.numPages = numPages;
+        lm = new LockManager();
     }
 
     public static int getPageSize() {
@@ -81,6 +85,7 @@ public class BufferPool {
     public Page getPage(TransactionId tid, PageId pid, Permissions perm)
             throws TransactionAbortedException, DbException {
         // some code goes here
+        lm.grantLock(tid, pid, perm);
         if (!pages.containsKey(pid)) {
             if (pages.size() >= numPages)
                 evictPage();
@@ -105,6 +110,7 @@ public class BufferPool {
     public void releasePage(TransactionId tid, PageId pid) {
         // some code goes here
         // not necessary for lab1|lab2
+        lm.releaseLock(tid, pid);
     }
 
     /**
@@ -115,6 +121,7 @@ public class BufferPool {
     public void transactionComplete(TransactionId tid) throws IOException {
         // some code goes here
         // not necessary for lab1|lab2
+        transactionComplete(tid, true);
     }
 
     /**
@@ -123,7 +130,7 @@ public class BufferPool {
     public boolean holdsLock(TransactionId tid, PageId p) {
         // some code goes here
         // not necessary for lab1|lab2
-        return false;
+        return lm.holdLock(tid, p);
     }
 
     /**
@@ -268,6 +275,10 @@ public class BufferPool {
     public synchronized void flushPages(TransactionId tid) throws IOException {
         // some code goes here
         // not necessary for lab1|lab2
+        Set<LockManager.PageLock> s = lm.getPages(tid);
+        for (LockManager.PageLock l: s) {
+            flushPage(l.pid);
+        }
     }
 
     /**

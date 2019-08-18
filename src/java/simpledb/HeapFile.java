@@ -98,7 +98,7 @@ public class HeapFile implements DbFile {
 
     // see DbFile.java for javadocs
     @Override
-    public void writePage(Page page) throws IOException {
+    public synchronized void writePage(Page page) throws IOException {
         // some code goes here
         // not necessary for lab1
         int pageSize = BufferPool.getPageSize();
@@ -124,7 +124,7 @@ public class HeapFile implements DbFile {
 
     // see DbFile.java for javadocs
     @Override
-    public ArrayList<Page> insertTuple(TransactionId tid, Tuple t)
+    public synchronized ArrayList<Page> insertTuple(TransactionId tid, Tuple t)
             throws DbException, IOException, TransactionAbortedException {
         // some code goes here
         // not necessary for lab1
@@ -134,16 +134,20 @@ public class HeapFile implements DbFile {
         ArrayList<Page> pages = new ArrayList<>();
         for (int i = 0; i < numPages; ++i) {
             heapPage = (HeapPage) Database.getBufferPool().getPage(tid,
-                    new HeapPageId(getId(), i), Permissions.READ_WRITE);
+                    new HeapPageId(getId(), i), Permissions.READ_ONLY);
             if (heapPage.getNumEmptySlots() > 0) {
                 done = true;
                 break;
             }
         }
-        if (!done)
+        if (!done) {
             heapPage = new HeapPage(new HeapPageId(getId(), numPages), HeapPage.createEmptyPageData());
+        } else {
+            heapPage = (HeapPage) Database.getBufferPool().getPage(tid,
+                    heapPage.getId(), Permissions.READ_WRITE);
+            pages.add(heapPage);
+        }
         heapPage.insertTuple(t);
-        pages.add(heapPage);
         if (!done)
             writePage(heapPage);
         return pages;
