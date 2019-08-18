@@ -1,10 +1,12 @@
 package simpledb;
 
+import java.security.PrivilegedExceptionAction;
 import java.util.Set;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Collections;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedDeque;
 
 public class LockManager {
 
@@ -47,21 +49,87 @@ public class LockManager {
         }
     }
 
+    static class Digraph {
+        final ConcurrentHashMap<TransactionId, HashSet<TransactionId>> waitList;
+
+        public Digraph() {
+            waitList = new ConcurrentHashMap<>();
+        }
+
+        public void addVertex(TransactionId tid) {
+            if (waitList.containsKey(tid)) {
+                return;
+            }
+            waitList.put(tid, new HashSet<>());
+        }
+
+        public void addEdge(TransactionId from, TransactionId to) {
+            addVertex(from);
+            addVertex(to);
+            waitList.get(from).add(to);
+        }
+
+        public void removeEdge(TransactionId from, TransactionId to) {
+            if (waitList.containsKey(from) && waitList.containsKey(to)) {
+                waitList.get(from).remove(to);
+            }
+        }
+
+        public void removeVertex(TransactionId tid) {
+            waitList.remove(tid);
+        }
+
+        private boolean isCyclicHelper(TransactionId id, ConcurrentHashMap<TransactionId, Boolean> visited,
+                                       ConcurrentHashMap<TransactionId, Boolean> traceStack) {
+            if (traceStack.getOrDefault(id, false)) {
+                return true;
+            }
+
+            if (visited.getOrDefault(id, false)) {
+                return false;
+            }
+            visited.put(id, true);
+            traceStack.put(id, true);
+            Set<TransactionId> s = waitList.get(id);
+
+            for (TransactionId t : s)
+                if (isCyclicHelper(t, visited, traceStack)) {
+                    return true;
+                }
+            traceStack.put(id, false);
+            return false;
+        }
+
+        public boolean isCyclic() {
+            int v = waitList.size();
+            ConcurrentHashMap<TransactionId, Boolean> visited = new ConcurrentHashMap<>();
+            ConcurrentHashMap<TransactionId, Boolean> traceStack = new ConcurrentHashMap<>();
+            for (TransactionId id : waitList.keySet())
+                if (isCyclicHelper(id, visited, traceStack)) {
+                    return true;
+                }
+            return false;
+        }
+    }
+
     /**
      * Map associates each transaction with its Lock.
      */
     final ConcurrentHashMap<TransactionId, Set<PageLock>> txToLock;
     final ConcurrentHashMap<PageId, Set<TransactionId>> lockTotx;
+    final Digraph graph;
 
     public LockManager() {
         txToLock = new ConcurrentHashMap<>();
         lockTotx = new ConcurrentHashMap<>();
+        graph = new Digraph();
     }
 
     /**
      * Grant a lock based on transaction, many thread may represent the same tid
      */
-    public synchronized void grantLock(TransactionId tid, PageId pid, Permissions perm) {
+    public synchronized void grantLock(TransactionId tid, PageId pid,
+                                       Permissions perm) throws TransactionAbortedException {
         Set<PageLock> lockSet = txToLock.get(tid);
         Set<TransactionId> txSet = lockTotx.get(pid);
         if (perm.equals(Permissions.READ_ONLY)) {
@@ -89,6 +157,23 @@ public class LockManager {
 
                 /* try to get the read lock */
                 if (lock.perm != Permissions.READ_ONLY) {
+                    /* add to wait graph, abort if there will be a cycle after allow this tx to wait*/
+                    for (TransactionId id : txSet) {
+                        graph.addEdge(tid, id);
+                    }
+                    if (graph.isCyclic()) {
+                        /* deadlock will occur */
+                        for (TransactionId id : txSet) {
+                            graph.removeEdge(tid, id);
+                        }
+                        graph.removeVertex(tid);
+                        if (lockSet != null) {
+                            for (PageLock id: lockSet) {
+                                releaseLock(tid, id.pid);
+                            }
+                        }
+                        throw new TransactionAbortedException();
+                    }
                     while (lock.holdNum != 0) {
                         try {
                             this.wait();
@@ -97,6 +182,7 @@ public class LockManager {
                         }
                     }
                 }
+                graph.removeVertex(tid);
                 lock.holdNum++;
                 /* update map */
                 if (lockSet == null) {
@@ -150,10 +236,28 @@ public class LockManager {
                             lock.holdNum = 1;
                         }
                         return;
-                    } else {
-                        /* release its read lock to make it possible to get a write lock */
-                        releaseLock(tid, pid);
                     }
+//                    } else {
+//                        /* release its read lock to make it possible to get a write lock */
+//                        releaseLock(tid, pid);
+//                    }
+                }
+                /* add to wait graph, abort if there will be a cycle after allow this tx to wait*/
+                for (TransactionId id : txSet) {
+                    graph.addEdge(tid, id);
+                }
+                if (graph.isCyclic()) {
+                    /* deadlock will occur */
+                    for (TransactionId id : txSet) {
+                        graph.removeEdge(tid, id);
+                    }
+                    graph.removeVertex(tid);
+                    if (lockSet != null) {
+                        for (PageLock id: lockSet) {
+                            releaseLock(tid, id.pid);
+                        }
+                    }
+                    throw new TransactionAbortedException();
                 }
                 /* try to get the write lock */
                 while (lock.holdNum != 0) {
@@ -163,6 +267,7 @@ public class LockManager {
 
                     }
                 }
+                graph.removeVertex(tid);
                 lock.holdNum++;
                 lock.perm = Permissions.READ_WRITE;
 
@@ -201,6 +306,7 @@ public class LockManager {
 
     public synchronized void releaseLock(TransactionId tid, PageId pid) {
         if (holdLock(tid, pid)) {
+//            System.out.println("release" + tid.getId());
             Set<PageLock> lockSet = txToLock.get(tid);
             Set<TransactionId> txSet = lockTotx.get(pid);
             PageLock lock = null;

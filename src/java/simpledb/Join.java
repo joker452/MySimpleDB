@@ -41,16 +41,7 @@ public class Join extends Operator {
     public String getJoinField1Name() {
         // some code goes here
         if (field1Name == null) {
-            Iterator<Integer> it = Database.getCatalog().tableIdIterator();
-            TupleDesc td1 = children[0].getTupleDesc();
-            while (it.hasNext()) {
-                int tableId = it.next();
-                if (Database.getCatalog().getTupleDesc(tableId).equals(td1)) {
-                    field1Name = Database.getCatalog().getTableName(tableId) +
-                            "." + td1.getFieldName(p.getField1());
-                    break;
-                }
-            }
+            field1Name = children[0].getTupleDesc().getFieldName(p.getField1());
         }
         return field1Name;
     }
@@ -62,16 +53,7 @@ public class Join extends Operator {
     public String getJoinField2Name() {
         // some code goes here
         if (field2Name == null) {
-            Iterator<Integer> it = Database.getCatalog().tableIdIterator();
-            TupleDesc td2 = children[1].getTupleDesc();
-            while (it.hasNext()) {
-                int tableId = it.next();
-                if (Database.getCatalog().getTupleDesc(tableId).equals(td2)) {
-                    field2Name = Database.getCatalog().getTableName(tableId) +
-                            "." + td2.getFieldName(p.getField2());
-                    break;
-                }
-            }
+            field2Name = children[1].getTupleDesc().getFieldName(p.getField2());
         }
         return field2Name;
     }
