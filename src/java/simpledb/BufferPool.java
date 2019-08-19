@@ -87,7 +87,6 @@ public class BufferPool {
             throws TransactionAbortedException, DbException {
         // some code goes here
         lm.grantLock(tid, pid, perm);
-//        System.out.println("grant" + tid.getId() + perm.toString());
         if (!pages.containsKey(pid)) {
             if (pages.size() >= numPages)
                 evictPage(tid);
@@ -180,7 +179,7 @@ public class BufferPool {
         // some code goes here
         // not necessary for lab1
         DbFile db = Database.getCatalog().getDatabaseFile(tableId);
-        ArrayList<Page> modifiedPages = Database.getCatalog().getDatabaseFile(tableId).insertTuple(tid, t);
+        ArrayList<Page> modifiedPages = db.insertTuple(tid, t);
 
         for (Page p : modifiedPages) {
             p.markDirty(true, tid);
