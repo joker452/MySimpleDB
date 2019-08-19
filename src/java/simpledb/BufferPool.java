@@ -32,7 +32,7 @@ public class BufferPool {
 
     private final int numPages;
 
-    final LockManager lm;
+    private final LockManager lm;
 
     /**
      * Default number of pages passed to the constructor. This is used by
@@ -320,7 +320,6 @@ public class BufferPool {
             so the least recent used page will not be used anymore
             */
             if (pages.get(id).isDirty() == null) {
-//            && (lm.getTxId(id).size() == 0 || (lm.getTxId(id).size() == 1 && lm.holdLock(tid, id)))) {
                 pid = id;
                 found = true;
                 break;

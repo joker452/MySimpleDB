@@ -53,7 +53,7 @@ public class LockManager {
             waitList = new ConcurrentHashMap<>();
         }
 
-        public void print() {
+        void print() {
             for (Map.Entry e: waitList.entrySet()) {
                 System.out.print("" + ((TransactionId) e.getKey()).getId() + ": ");
                 HashSet<TransactionId> s = (HashSet<TransactionId>) e.getValue();
@@ -63,6 +63,7 @@ public class LockManager {
                 System.out.println();
             }
         }
+
         public void addVertex(TransactionId tid) {
             if (waitList.containsKey(tid)) {
                 return;
@@ -143,7 +144,6 @@ public class LockManager {
      */
     public synchronized void grantLock(TransactionId tid, PageId pid,
                                        Permissions perm) throws TransactionAbortedException {
-//        System.out.println("request" + tid.getId() + perm.toString());
         Set<PageLock> lockSet = txToLock.get(tid);
         Set<TransactionId> txSet = lockTotx.get(pid);
         if (perm.equals(Permissions.READ_ONLY)) {
@@ -152,7 +152,6 @@ public class LockManager {
                 /* there is some tx hold this lock */
                 if (lockSet != null && lockSet.contains(new PageLock(pid, Permissions.READ_ONLY))) {
                     /* this transaction already holds a lock for this page */
-//                    System.out.println("grant" + tid.getId() + perm.toString());
                     return;
                 }
                 /*
@@ -165,7 +164,6 @@ public class LockManager {
                     there are many readers, and a writer want to get the lock,
                     abort the new reader to avoid starvation
                     */
-//                    System.out.println("offer lock" + tid.getId());
                     throw new TransactionAbortedException();
                 }
                 Iterator<TransactionId> it = txSet.iterator();
@@ -188,17 +186,10 @@ public class LockManager {
                     }
                     if (graph.isCyclic()) {
                         /* deadlock will occur */
-//                        graph.print();
                         for (TransactionId id : txSet) {
                             graph.removeEdge(tid, id);
                         }
                         graph.removeVertex(tid);
-//                        if (lockSet != null) {
-//                            for (PageLock id: lockSet) {
-//                                releaseLock(tid, id.pid);
-//                            }
-//                        }
-//                        System.out.println("deadlock" + tid.getId());
                         throw new TransactionAbortedException();
                     }
                     while (lock.holdNum != 0) {
@@ -210,6 +201,7 @@ public class LockManager {
                     }
                 }
                 graph.removeVertex(tid);
+                lock.perm = perm;
                 lock.holdNum++;
                 /* update map */
                 if (lockSet == null) {
@@ -220,7 +212,6 @@ public class LockManager {
                 } else {
                     lockSet.add(lock);
                 }
-//                System.out.println("grant" + tid.getId() + perm.toString());
                 txSet.add(tid);
             } else {
                 /*
@@ -239,7 +230,6 @@ public class LockManager {
                 HashSet<TransactionId> s = new HashSet<>();
                 s.add(tid);
                 lockTotx.put(pid, s);
-//                System.out.println("grant" + tid.getId() + perm.toString());
             }
         } else {
             /* request a write lock */
@@ -265,15 +255,13 @@ public class LockManager {
                             lock.upgradeLock();
                             lock.holdNum = 1;
                         }
-//                        System.out.println("grant" + tid.getId() + perm.toString());
                         return;
                     } else {
+                        /* shouldn't release lock here, in rigorous 2PL
+                        all locks can be released only when tx commits or aborts,
+                         */
                         holds = true;
                     }
-//                    } else {
-//                        /* release its read lock to make it possible to get a write lock */
-//                        releaseLock(tid, pid);
-//                    }
                 }
                 /* add to wait graph, abort if there will be a cycle after allow this tx to wait*/
                 for (TransactionId id : txSet) {
@@ -283,19 +271,10 @@ public class LockManager {
                 }
                 if (graph.isCyclic()) {
                     /* deadlock will occur */
-//                    graph.print();
-
                     for (TransactionId id : txSet) {
                         graph.removeEdge(tid, id);
                     }
                     graph.removeVertex(tid);
-//                    if (lockSet != null) {
-//                        for (PageLock id: lockSet) {
-//                            releaseLock(tid, id.pid);
-//                        }
-//                    }
-//                    System.out.println("deadlock" + tid.getId());
-
                     throw new TransactionAbortedException();
                 }
                 hasWriter = true;
@@ -323,7 +302,6 @@ public class LockManager {
                     s.add(lock);
                     txToLock.put(tid, s);
                 }
-//                System.out.println("grant" + tid.getId() + perm.toString());
             } else {
                 /* this page's lock isn't held by any tx */
                 PageLock lock = new PageLock(pid, perm);
@@ -337,8 +315,6 @@ public class LockManager {
                 HashSet<TransactionId> s = new HashSet<>();
                 s.add(tid);
                 lockTotx.put(pid, s);
-//                System.out.println("grant" + tid.getId() + perm.toString());
-
             }
         }
 
@@ -352,7 +328,6 @@ public class LockManager {
 
     public synchronized void releaseLock(TransactionId tid, PageId pid) {
         if (holdLock(tid, pid)) {
-//            System.out.println("release" + tid.getId());
             Set<PageLock> lockSet = txToLock.get(tid);
             Set<TransactionId> txSet = lockTotx.get(pid);
             PageLock lock = null;
@@ -383,13 +358,6 @@ public class LockManager {
     public synchronized Set<PageLock> getPages(TransactionId tid) {
         /* return a copy of the set to support modification when iterating */
         return new HashSet<>(txToLock.getOrDefault(tid, Collections.emptySet()));
-    }
-
-    /**
-     * get all the transactions for the specified lock
-     */
-    public synchronized Set<TransactionId> getTxId(PageId pid) {
-        return lockTotx.getOrDefault(pid, Collections.emptySet());
     }
 
 }
