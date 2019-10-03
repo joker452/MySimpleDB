@@ -136,7 +136,7 @@ released by another transaction running in a different thread).
 You need to be especially careful to avoid race conditions when
 writing the code that acquires locks -- think about how you will
 ensure that correct behavior results if two threads request the same
-lock at the same time (you way wish to read about <a
+lock at the same time (you may wish to read about <a
 href="http://docs.oracle.com/javase/tutorial/essential/concurrency/sync.html">
 Synchronization</a> in Java).
 

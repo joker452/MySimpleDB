@@ -345,12 +345,12 @@ public class HeapPage implements Page {
      */
     public Iterator<Tuple> iterator() {
         // some code goes here
-        Iterator<Tuple> it = new Iterator<>() {
+        Iterator<Tuple> it = new Iterator<Tuple>() {
             int currentIdx = 0;
 
             @Override
             public boolean hasNext() {
-                while (currentIdx < nuSlots)
+                while (currentIdx < numSlots)
                     if (isSlotUsed(currentIdx))
                         return true;
                     else

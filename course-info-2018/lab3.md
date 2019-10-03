@@ -342,7 +342,7 @@ cost1, double cost2)</tt>:  This method estimates the cost of
 join j, given that the left input is of cardinality card1, the
 right input of cardinality card2, that the cost to scan the left
 input is cost1, and that the cost to access the right input is
-card2.  You can assume the join is an NL join, and apply
+cost2.  You can assume the join is an NL join, and apply
 the formula mentioned earlier.
 *  Implement <tt>estimateJoinCardinality(LogicalJoinNode j, int
 card1, int card2, boolean t1pkey, boolean t2pkey)</tt>: This

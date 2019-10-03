@@ -1,9 +1,7 @@
 package simpledb;
 
-import java.security.PrivilegedExceptionAction;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedDeque;
 
 public class LockManager {
 
